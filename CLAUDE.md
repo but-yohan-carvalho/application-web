@@ -9,12 +9,14 @@ Première remise : 31 mai 2026 | Remise finale : 25 juin 2026
 
 ## Commandes essentielles
 
+Le fichier `.flaskenv` à la racine configure automatiquement `FLASK_APP=inf349`, `FLASK_DEBUG=True` et `FLASK_RUN_PORT=5001` (port 5000 réservé par Windows sur cette machine). `python-dotenv` doit être installé.
+
 ```bash
 # Initialiser la base de données et charger les produits depuis l'API externe
-FLASK_DEBUG=True FLASK_APP=inf349 flask init-db
+flask init-db
 
-# Lancer l'application
-FLASK_DEBUG=True FLASK_APP=inf349 flask run
+# Lancer l'application (port 5001)
+flask run
 
 # Lancer tous les tests
 pytest
@@ -47,7 +49,7 @@ docs/           → diagrammes PlantUML (.puml)
 
 ### Modèles (models.py)
 
-**`Product`** — copie locale des produits récupérés depuis `dimensweb.uqac.ca/jgnault/shops/products/` au `flask init-db`. Jamais re-fetchés à chaque requête.
+**`Product`** — copie locale des produits récupérés depuis `dimensweb.uqac.ca/~jgnault/shops/products/` au `flask init-db`. Jamais re-fetchés à chaque requête.
 
 **`Order`** — contient tout à plat : champs `shipping_*` (livraison), `cc_*` (carte de crédit retournée par le service distant), `transaction_*`. Les sous-objets `ShippingInformation`, `CreditCard`, `Transaction` existent comme classes Python dans `services.py` mais ne sont pas des tables séparées.
 
@@ -87,7 +89,7 @@ Le `PUT /order/<id>` distingue deux cas selon le body reçu :
 ## Service de paiement distant
 
 ```
-POST https://dimensweb.uqac.ca/jgnault/shops/pay/
+POST https://dimensweb.uqac.ca/~jgnault/shops/pay/
 Body: { "credit_card": {...}, "amount_charged": <int en cents> }
 ```
 
@@ -107,8 +109,8 @@ Cartes de test : `4242 4242 4242 4242` (valide) | `4000 0000 0000 0002` (déclin
 ## État actuel du projet
 
 - [x] Diagrammes PlantUML dans `docs/` (classes + 6 séquences)
-- [ ] `inf349.py` — point d'entrée + `flask init-db`
-- [ ] `models.py` — Product, Order
-- [ ] `services.py` — ProductService, OrderService, PaymentService
-- [ ] `routes.py` — 4 endpoints
-- [ ] `tests/` — pytest
+- [x] `inf349.py` — point d'entrée + `flask init-db`
+- [x] `models.py` — Product, Order
+- [x] `services.py` — ProductService, OrderService, PaymentService
+- [x] `routes.py` — 4 endpoints
+- [ ] `tests/` — pytest (à faire)
