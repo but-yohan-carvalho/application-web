@@ -1,0 +1,29 @@
+@startuml seq_04_get_order
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 2
+
+title GET /order/<id> : consultation d'une commande
+
+actor       Client
+participant "routes.py"    as Routes
+participant "OrderService" as OS
+database    "SQLite"       as DB
+
+Client -> Routes  : GET /order/42
+Routes -> OS      : get(order_id=42)
+OS -> DB          : SELECT * FROM order WHERE id = 42
+
+alt commande introuvable
+    DB --> OS         : null
+    OS --> Routes     : erreur not found
+    Routes --> Client : 404 Not Found
+
+else commande trouvee
+    DB --> OS         : Order
+    OS --> Routes     : Order
+    Routes --> Client : 200 OK { "order": { ... } }
+end
+
+@enduml

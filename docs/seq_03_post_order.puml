@@ -1,0 +1,42 @@
+@startuml seq_03_post_order
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 2
+
+title POST /order : creation de commande
+
+actor       Client
+participant "routes.py"      as Routes
+participant "OrderService"   as OS
+participant "ProductService" as PS
+database    "SQLite"         as DB
+
+Client -> Routes : POST /order\n{ "product": { "id": 1, "quantity": 2 } }
+Routes -> OS     : create(product_id, quantity)
+
+alt product / quantity manquants ou quantity < 1
+    OS --> Routes     : erreur missing-fields
+    Routes --> Client : 422 { "errors": { "product": { "code": "missing-fields" } } }
+
+else produit hors stock
+    OS -> PS          : get_by_id(product_id)
+    PS -> DB          : SELECT * FROM product WHERE id = ?
+    DB --> PS         : Product (in_stock = false)
+    PS --> OS         : Product
+    OS --> Routes     : erreur out-of-inventory
+    Routes --> Client : 422 { "errors": { "product": { "code": "out-of-inventory" } } }
+
+else produit en stock
+    OS -> PS          : get_by_id(product_id)
+    PS -> DB          : SELECT * FROM product WHERE id = ?
+    DB --> PS         : Product (in_stock = true)
+    PS --> OS         : Product
+    OS -> OS          : calc_shipping(weight)\ncalc_total(price, qty)
+    OS -> DB          : INSERT INTO order (...)
+    DB --> OS         : Order (id = 42)
+    OS --> Routes     : Order
+    Routes --> Client : 302 Location: /order/42
+end
+
+@enduml

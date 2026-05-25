@@ -1,0 +1,21 @@
+@startuml seq_01_init
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 2
+
+title Demarrage : flask init-db
+
+actor       Client
+participant "routes.py"      as Routes
+participant "ProductService" as PS
+database    "SQLite"         as DB
+participant "dimensweb.uqac.ca" as EXT
+
+Routes -> PS  : fetch_and_store()
+PS -> EXT     : GET /jgnault/shops/products/
+EXT --> PS    : [{ id, name, price, weight, in_stock... }]
+PS -> DB      : INSERT INTO product (...)
+DB --> PS     : ok
+
+@enduml

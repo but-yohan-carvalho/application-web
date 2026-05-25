@@ -1,0 +1,51 @@
+@startuml seq_06_put_payment
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 2
+
+title PUT /order/<id> : paiement par carte de credit
+
+actor       Client
+participant "routes.py"      as Routes
+participant "OrderService"   as OS
+participant "PaymentService" as PAY
+database    "SQLite"         as DB
+participant "dimensweb.uqac.ca" as EXT
+
+Client -> Routes : PUT /order/42\n{ "credit_card": { "number": "4242...", "cvv": "123", ... } }
+Routes -> OS     : apply_credit_card(order_id, credit_card)
+OS -> DB         : SELECT * FROM order WHERE id = 42
+
+alt commande deja payee
+    DB --> OS         : Order (paid = true)
+    OS --> Routes     : erreur already-paid
+    Routes --> Client : 422 { "errors": { "order": { "code": "already-paid" } } }
+
+else email ou adresse manquants
+    DB --> OS         : Order (email = null)
+    OS --> Routes     : erreur missing-fields
+    Routes --> Client : 422 { "errors": { "order": { "code": "missing-fields" } } }
+
+else informations completes
+    DB --> OS         : Order
+    OS -> PAY         : charge(credit_card, amount_charged)
+    PAY -> EXT        : POST /jgnault/shops/pay/\n{ "credit_card": {...}, "amount_charged": 10520 }
+
+    alt carte declinee
+        EXT --> PAY       : 422 card-declined
+        PAY --> OS        : erreur card-declined
+        OS --> Routes     : erreur card-declined
+        Routes --> Client : 422 { "credit_card": { "code": "card-declined" } }
+
+    else paiement accepte
+        EXT --> PAY       : 200 { "transaction": {...}, "credit_card": {...} }
+        PAY --> OS        : dict resultat
+        OS -> DB          : UPDATE order SET paid=true, cc_*, transaction_*
+        DB --> OS         : Order mise a jour
+        OS --> Routes     : Order
+        Routes --> Client : 200 OK { "order": { "paid": true, "transaction": {...} } }
+    end
+end
+
+@enduml
