@@ -1,0 +1,21 @@
+@startuml seq_02_get_products
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 2
+
+title GET / : liste des produits
+
+actor       Client
+participant "routes.py"      as Routes
+participant "ProductService" as PS
+database    "SQLite"         as DB
+
+Client -> Routes  : GET /
+Routes -> PS      : get_all()
+PS -> DB          : SELECT * FROM product
+DB --> PS         : [ Product, ... ]
+PS --> Routes     : liste produits
+Routes --> Client : 200 OK { "products": [...] }
+
+@enduml

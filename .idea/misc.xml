@@ -3,4 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.14 (projet web avancé)" />
   </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.14 (application-web)" project-jdk-type="Python SDK" />
 </project>

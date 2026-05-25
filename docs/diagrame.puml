@@ -1,0 +1,130 @@
+@startuml Diagramme_Classes
+
+allowmixing
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 13
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+' ─── COUCHE MODELES ───
+package "models.py" #LightYellow {
+
+    class Product {
+        + id : int <<PK>>
+        + name : String
+        + description : String
+        + price : float
+        + weight : int
+        + in_stock : bool
+        + image : String
+    }
+
+    class Order {
+        + id : int <<PK>>
+        + quantity : int
+        + total_price : float
+        + total_price_tax : float
+        + shipping_price : float
+        + email : String
+        + paid : bool
+    }
+
+    class ShippingInformation {
+        + country : String
+        + address : String
+        + postal_code : String
+        + city : String
+        + province : String
+    }
+
+    class CreditCard {
+        + name : String
+        + first_digits : String
+        + last_digits : String
+        + expiration_year : int
+        + expiration_month : int
+    }
+
+    class Transaction {
+        + id : String
+        + success : bool
+        + amount_charged : float
+    }
+
+    note bottom of ShippingInformation : stocke a plat\ndans la table Order
+    note bottom of CreditCard          : stocke a plat\ndans la table Order
+    note bottom of Transaction         : stocke a plat\ndans la table Order
+
+    Product "1"  <--  "0..*" Order : reference par
+    Order   "1"  *--  "0..1" ShippingInformation : contient
+    Order   "1"  *--  "0..1" CreditCard          : contient
+    Order   "1"  *--  "0..1" Transaction         : contient
+}
+
+' ─── COUCHE SERVICES ───
+package "services.py" #LightBlue {
+
+    class ProductService {
+        + {static} fetch_and_store() : void
+        + {static} get_all() : List<Product>
+        + {static} get_by_id(id : int) : Product
+    }
+
+    class OrderService {
+        + {static} create(product_id : int, quantity : int) : Order
+        + {static} get(order_id : int) : Order
+        + {static} update_shipping(order_id : int, email : String, info : dict) : Order
+        + {static} apply_credit_card(order_id : int, credit_card : dict) : Order
+        --
+        - {static} calc_shipping(weight_g : int) : float
+        - {static} calc_total(price : float, qty : int) : float
+        - {static} calc_total_tax(total : float, province : String) : float
+    }
+
+    class PaymentService {
+        + {static} PAY_URL : String
+        + {static} charge(credit_card : dict, amount : float) : dict
+    }
+
+    OrderService ..> ProductService : utilise
+    OrderService ..> PaymentService : delegue le paiement
+}
+
+' ─── COUCHE ROUTES ───
+package "routes.py" #LightGreen {
+
+    class Routes {
+        + GET /() : json
+        + POST /order() : 302
+        + GET /order(id : int) : json
+        + PUT /order(id : int) : json
+    }
+}
+
+' ─── POINT D ENTREE ───
+package "inf349.py" #MistyRose {
+
+    class App {
+        + create_app() : Flask
+        + init_db() : void
+    }
+}
+
+' ─── RELATIONS INTER-COUCHES ───
+Routes ..> OrderService   : delegue
+Routes ..> ProductService : delegue
+App    ..> Routes         : enregistre
+App    ..> ProductService : appelle au demarrage
+
+ProductService ..> Product : CRUD
+OrderService   ..> Order   : CRUD
+
+' ─── API EXTERNES ───
+cloud "API Produits\ndimensweb.uqac.ca\n/jgnault/shops/products/" as ProdAPI
+cloud "Service Paiement\ndimensweb.uqac.ca\n/jgnault/shops/pay/" as PayAPI
+
+ProductService --> ProdAPI : urllib GET
+PaymentService --> PayAPI  : urllib POST
+
+@enduml

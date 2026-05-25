@@ -1,0 +1,37 @@
+@startuml seq_05_put_shipping
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 2
+
+title PUT /order/<id> : informations de livraison
+
+actor       Client
+participant "routes.py"    as Routes
+participant "OrderService" as OS
+database    "SQLite"       as DB
+
+Client -> Routes : PUT /order/42\n{ "order": { "email": "...", "shipping_information": { "province": "QC", ... } } }
+Routes -> OS     : update_shipping(order_id, email, shipping_info)
+OS -> DB         : SELECT * FROM order WHERE id = 42
+
+alt commande introuvable
+    DB --> OS         : null
+    OS --> Routes     : erreur not found
+    Routes --> Client : 404 Not Found
+
+else champs manquants (email ou adresse incomplete)
+    DB --> OS         : Order
+    OS --> Routes     : erreur missing-fields
+    Routes --> Client : 422 { "errors": { "order": { "code": "missing-fields" } } }
+
+else informations completes
+    DB --> OS         : Order
+    OS -> OS          : calc_total_tax(total_price, province)
+    OS -> DB          : UPDATE order SET email, shipping_*, total_price_tax
+    DB --> OS         : Order mise a jour
+    OS --> Routes     : Order
+    Routes --> Client : 200 OK { "order": { "total_price_tax": 10520.20, ... } }
+end
+
+@enduml
