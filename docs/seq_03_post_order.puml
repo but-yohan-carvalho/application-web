@@ -32,8 +32,7 @@ else produit en stock
     PS -> DB          : SELECT * FROM product WHERE id = ?
     DB --> PS         : Product (in_stock = true)
     PS --> OS         : Product
-    OS -> OS          : calc_shipping(weight)\ncalc_total(price, qty)
-    OS -> DB          : INSERT INTO order (...)
+    OS -> DB          : INSERT INTO order (product_id, quantity)
     DB --> OS         : Order (id = 42)
     OS --> Routes     : Order
     Routes --> Client : 302 Location: /order/42

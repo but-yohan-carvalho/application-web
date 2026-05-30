@@ -106,7 +106,6 @@ package "routes.py" #LightGreen {
 package "inf349.py" #MistyRose {
 
     class App {
-        + create_app() : Flask
         + init_db() : void
     }
 }

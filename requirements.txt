@@ -1,0 +1,5 @@
+flask
+peewee
+pytest
+pytest-flask
+python-dotenv
