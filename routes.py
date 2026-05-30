@@ -1,14 +1,23 @@
 import json
 import urllib.error
-from flask import Blueprint, jsonify, request, redirect, url_for
+from flask import Blueprint, jsonify, request, redirect, url_for, render_template
 from services import ProductService, OrderService
 
 api = Blueprint('api', __name__)
 
 
+def _wants_html():
+    best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
+    return best == 'text/html'
+
+
 @api.route('/')
 def get_products():
     products = ProductService.get_all()
+
+    if _wants_html():
+        return render_template('index.html', products=products)
+
     return jsonify({
         'products': [
             {
@@ -51,7 +60,13 @@ def get_order(order_id):
     order = OrderService.get(order_id)
 
     if order is None:
+        if _wants_html():
+            return render_template('error.html', message="Commande introuvable"), 404
         return jsonify({'errors': {'order': {'code': 'not-found', 'name': 'La commande n\'existe pas'}}}), 404
+
+    if _wants_html():
+        product = ProductService.get_by_id(order.product)
+        return render_template('order.html', order=_order_to_dict(order)['order'], product=product)
 
     return jsonify(_order_to_dict(order))
 

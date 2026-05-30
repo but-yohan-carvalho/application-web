@@ -39,12 +39,13 @@ pytest --cov=. tests/
 ## Architecture en 3 couches
 
 ```
-inf349.py       → point d'entrée Flask + commande CLI flask init-db
-models.py       → modèles Peewee : Product, Order
-services.py     → logique métier : ProductService, OrderService, PaymentService
-routes.py       → 4 endpoints REST (importé dans inf349.py)
-tests/          → pytest + pytest-flask
-docs/           → diagrammes PlantUML (.puml)
+inf349.py         → point d'entrée Flask + commande CLI flask init-db
+models.py         → modèles Peewee : Product, Order
+services.py       → logique métier : ProductService, OrderService, PaymentService
+routes.py         → 4 endpoints REST + négociation HTML/JSON (importé dans inf349.py)
+templates/        → templates Jinja2 pour la remise finale (HTML)
+tests/            → pytest + pytest-flask
+docs/             → diagrammes PlantUML (.puml) + PNG générés
 ```
 
 ### Modèles (models.py)
@@ -77,14 +78,16 @@ QC=15%  ON=13%  AB=5%  BC=12%  NS=14%
 
 | Méthode | Route | Description |
 |---|---|---|
-| GET | `/` | Liste tous les produits |
+| GET | `/` | Liste tous les produits (JSON ou HTML selon `Accept`) |
 | POST | `/order` | Crée une commande → 302 vers `/order/<id>` |
-| GET | `/order/<id>` | Récupère une commande |
+| GET | `/order/<id>` | Récupère une commande (JSON ou HTML selon `Accept`) |
 | PUT | `/order/<id>` | Update shipping info OU paiement carte (deux appels distincts) |
 
 Le `PUT /order/<id>` distingue deux cas selon le body reçu :
 - Body contient `order` → update email + shipping_information
 - Body contient `credit_card` → appel au service de paiement distant
+
+La négociation de contenu (`_wants_html()`) permet à `GET /` et `GET /order/<id>` de retourner du HTML (templates Jinja2) quand le client envoie `Accept: text/html`, ou du JSON sinon.
 
 ## Service de paiement distant
 
@@ -108,9 +111,14 @@ Cartes de test : `4242 4242 4242 4242` (valide) | `4000 0000 0000 0002` (déclin
 
 ## État actuel du projet
 
-- [x] Diagrammes PlantUML dans `docs/` (classes + 6 séquences)
+### Première remise (31 mai 2026) — complète
+- [x] Diagrammes PlantUML dans `docs/` (classes + 6 séquences) + PNG générés
 - [x] `inf349.py` — point d'entrée + `flask init-db`
 - [x] `models.py` — Product, Order
 - [x] `services.py` — ProductService, OrderService, PaymentService
-- [x] `routes.py` — 4 endpoints
-- [ ] `tests/` — pytest (à faire)
+- [x] `routes.py` — 4 endpoints REST + négociation HTML/JSON
+- [x] `tests/` — 17 tests pytest (conftest.py + test_routes.py)
+- [x] `requirements.txt`
+
+### Remise finale (25 juin 2026) — en cours
+- [ ] `templates/` — pages HTML (index.html, order.html, error.html)
