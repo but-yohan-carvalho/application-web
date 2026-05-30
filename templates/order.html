@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block title %}Commande #{{ order.id }} — INF349 Shop{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:32px;flex-wrap:wrap;">
+    <a href="/" class="btn-navy-outline">&larr; Catalogue</a>
+    <h1 style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.8rem;margin:0;">
+        Commande #{{ order.id }}
+    </h1>
+    {% if order.paid %}
+    <span class="status-badge s-paid">Payée ✓</span>
+    {% elif order.shipping_information %}
+    <span class="status-badge s-pending">En attente de paiement</span>
+    {% else %}
+    <span class="status-badge s-new">Nouvelle commande</span>
+    {% endif %}
+</div>
+
+<!-- Error -->
+<div id="error-alert" class="alert-err"></div>
+
+<!-- Steps indicator -->
+<div style="display:flex;gap:0;margin-bottom:36px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);">
+    <div style="flex:1;padding:12px 16px;font-family:'Montserrat',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:1.5px;text-align:center;
+         background:{% if order.paid or order.shipping_information %}var(--primary){% else %}var(--foreground){% endif %};
+         color:white;">
+        1 · LIVRAISON
+    </div>
+    <div style="flex:1;padding:12px 16px;font-family:'Montserrat',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:1.5px;text-align:center;
+         background:{% if order.paid %}var(--primary){% elif order.shipping_information %}var(--foreground){% else %}#ddd{% endif %};
+         color:{% if order.shipping_information or order.paid %}white{% else %}var(--muted-foreground){% endif %};">
+        2 · PAIEMENT
+    </div>
+    <div style="flex:1;padding:12px 16px;font-family:'Montserrat',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:1.5px;text-align:center;
+         background:{% if order.paid %}var(--primary){% else %}#ddd{% endif %};
+         color:{% if order.paid %}white{% else %}var(--muted-foreground){% endif %};">
+        3 · CONFIRMÉ
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left: summary -->
+    <div class="col-md-5">
+        <!-- Product -->
+        <div class="o-card">
+            <div class="o-card-header">Résumé de la commande</div>
+            <div class="o-card-body">
+                {% if product %}
+                <div style="display:flex;gap:16px;margin-bottom:16px;">
+                    <img src="{{ IMAGE_BASE }}{{ product.image }}" alt="{{ product.name }}"
+                         style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius);flex-shrink:0;background:var(--muted);">
+                    <div>
+                        <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.95rem;margin-bottom:4px;">
+                            {{ product.name }}
+                        </div>
+                        <div style="font-size:0.82rem;color:var(--muted-foreground);">
+                            Quantité : {{ order.product.quantity }}
+                        </div>
+                        <div style="font-size:0.82rem;color:var(--muted-foreground);">
+                            ${{ "%.2f"|format(product.price / 100) }} / unité
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if order.email %}
+                <div style="font-size:0.85rem;padding-top:12px;border-top:1px solid var(--border);">
+                    <strong>Email :</strong> {{ order.email }}
+                </div>
+                {% endif %}
+                {% if order.shipping_information %}
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+                    <div style="font-family:'Montserrat',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:1.5px;color:var(--muted-foreground);margin-bottom:8px;">
+                        ADRESSE DE LIVRAISON
+                    </div>
+                    <address style="font-size:0.85rem;margin:0;line-height:1.7;font-style:normal;">
+                        {{ order.shipping_information.address }}<br>
+                        {{ order.shipping_information.city }}, {{ order.shipping_information.province }}<br>
+                        {{ order.shipping_information.postal_code }}<br>
+                        {{ order.shipping_information.country }}
+                    </address>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Price breakdown -->
+        {% if order.shipping_information %}
+        <div class="o-card">
+            <div class="o-card-header">Détail des prix</div>
+            <div class="o-card-body">
+                <div class="price-line">
+                    <span>Sous-total</span>
+                    <span>${{ "%.2f"|format(order.total_price / 100) }}</span>
+                </div>
+                <div class="price-line">
+                    <span>Taxes ({{ order.shipping_information.province }})</span>
+                    <span>${{ "%.2f"|format((order.total_price_tax - order.total_price) / 100) }}</span>
+                </div>
+                <div class="price-line">
+                    <span>Livraison</span>
+                    <span>${{ "%.2f"|format(order.shipping_price / 100) }}</span>
+                </div>
+                <div class="price-total">
+                    <span>Total</span>
+                    <span>${{ "%.2f"|format((order.total_price_tax + order.shipping_price) / 100) }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Transaction -->
+        {% if order.transaction %}
+        <div class="o-card" style="border-top:3px solid #198754;">
+            <div class="o-card-header" style="background:#198754;">Confirmation de paiement</div>
+            <div class="o-card-body" style="font-size:0.85rem;">
+                <div class="price-line"><span>ID Transaction</span><span style="font-family:monospace;font-size:0.78rem;">{{ order.transaction.id }}</span></div>
+                <div class="price-line">
+                    <span>Carte</span>
+                    <span>{{ order.credit_card.first_digits }}•••• {{ order.credit_card.last_digits }}</span>
+                </div>
+                <div class="price-line">
+                    <span>Expiration</span>
+                    <span>{{ order.credit_card.expiration_month }}/{{ order.credit_card.expiration_year }}</span>
+                </div>
+                <div class="price-total">
+                    <span>Débité</span>
+                    <span style="color:#198754;">${{ "%.2f"|format(order.transaction.amount_charged / 100) }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right: active form -->
+    <div class="col-md-7">
+        {% if order.paid %}
+        <!-- SUCCESS -->
+        <div class="o-card" style="border-top:4px solid #198754;">
+            <div class="o-card-body" style="text-align:center;padding:56px 24px;">
+                <div style="font-size:5rem;line-height:1;margin-bottom:16px;">✅</div>
+                <h2 style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:2rem;margin-bottom:12px;">
+                    Paiement réussi !
+                </h2>
+                <p style="color:var(--muted-foreground);margin-bottom:28px;">
+                    Votre commande a été traitée avec succès. Merci pour votre achat.
+                </p>
+                <a href="/" class="btn-red" style="padding:13px 32px;font-size:0.82rem;">
+                    RETOUR AU CATALOGUE
+                </a>
+            </div>
+        </div>
+
+        {% elif order.shipping_information %}
+        <!-- PAYMENT FORM -->
+        <div class="o-card">
+            <div class="o-card-header">Paiement par carte bancaire</div>
+            <div class="o-card-body">
+                <div style="background:var(--muted);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:0.8rem;color:var(--muted-foreground);">
+                    <strong style="color:var(--foreground);">Cartes de test :</strong>
+                    <code style="background:white;padding:2px 6px;border-radius:4px;margin:0 4px;">4242 4242 4242 4242</code> acceptée &nbsp;|&nbsp;
+                    <code style="background:white;padding:2px 6px;border-radius:4px;margin:0 4px;">4000 0000 0000 0002</code> refusée
+                </div>
+
+                <form id="payment-form">
+                    <div class="f-group">
+                        <label class="f-label">Nom sur la carte</label>
+                        <input type="text" class="f-input" id="cc-name" placeholder="John Doe" required>
+                    </div>
+                    <div class="f-group">
+                        <label class="f-label">Numéro de carte</label>
+                        <input type="text" class="f-input" id="cc-number"
+                               placeholder="4242 4242 4242 4242" maxlength="19" required>
+                    </div>
+                    <div class="row g-3" style="margin-bottom:16px;">
+                        <div class="col-4">
+                            <label class="f-label">Mois exp.</label>
+                            <input type="number" class="f-input" id="cc-month"
+                                   placeholder="MM" min="1" max="12" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="f-label">Année exp.</label>
+                            <input type="number" class="f-input" id="cc-year"
+                                   placeholder="YYYY" min="2024" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="f-label">CVV</label>
+                            <input type="text" class="f-input" id="cc-cvv"
+                                   placeholder="123" maxlength="4" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-red btn-red-lg" id="pay-btn">
+                        PAYER ${{ "%.2f"|format((order.total_price_tax + order.shipping_price) / 100) }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- SHIPPING FORM -->
+        <div class="o-card">
+            <div class="o-card-header">Informations de livraison</div>
+            <div class="o-card-body">
+                <form id="shipping-form">
+                    <div class="f-group">
+                        <label class="f-label">Email</label>
+                        <input type="email" class="f-input" id="email"
+                               placeholder="vous@exemple.com" required>
+                    </div>
+                    <div class="f-group">
+                        <label class="f-label">Adresse</label>
+                        <input type="text" class="f-input" id="address"
+                               placeholder="123 rue Principale" required>
+                    </div>
+                    <div class="row g-3" style="margin-bottom:16px;">
+                        <div class="col-6">
+                            <label class="f-label">Ville</label>
+                            <input type="text" class="f-input" id="city"
+                                   placeholder="Montréal" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="f-label">Province</label>
+                            <select class="f-select" id="province" required>
+                                <option value="">Choisir...</option>
+                                <option value="QC">Québec (QC)</option>
+                                <option value="ON">Ontario (ON)</option>
+                                <option value="AB">Alberta (AB)</option>
+                                <option value="BC">Colombie-Britannique (BC)</option>
+                                <option value="NS">Nouvelle-Écosse (NS)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-3" style="margin-bottom:24px;">
+                        <div class="col-6">
+                            <label class="f-label">Code postal</label>
+                            <input type="text" class="f-input" id="postal-code"
+                                   placeholder="A1A 1A1" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="f-label">Pays</label>
+                            <input type="text" class="f-input" id="country"
+                                   value="Canada" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-red btn-red-lg">
+                        CONTINUER VERS LE PAIEMENT →
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>const ORDER_ID = {{ order.id }};</script>
+<script src="{{ url_for('static', filename='js/order.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Catalogue — INF349 Shop{% endblock %}
+
+{% block hero %}
+<section class="hero">
+    <div class="hero-pattern"></div>
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+        <div>
+            <span class="hero-badge">NOUVELLE COLLECTION</span>
+            <h1>DÉCOUVREZ<br>NOS PRODUITS</h1>
+            <p class="hero-sub">
+                Une sélection de produits frais et de qualité, livrés directement chez vous.
+                Commander en quelques clics, payer en toute sécurité.
+            </p>
+            <div class="hero-btns">
+                <a href="#catalogue" class="btn-white">ACHETER MAINTENANT</a>
+                <a href="#catalogue" class="btn-ghost-white">VOIR LE CATALOGUE</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div id="catalogue">
+    <div id="order-error" class="alert-err" role="alert"></div>
+
+    <h2 class="section-title">Catalogue</h2>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for p in products %}
+        <div class="col">
+            <div class="product-card">
+                <div class="product-img-wrap">
+                    <img src="{{ IMAGE_BASE }}{{ p.image }}"
+                         class="product-img" alt="{{ p.name }}">
+                    {% if p.in_stock %}
+                    <span class="product-img-badge">EN STOCK</span>
+                    {% else %}
+                    <span class="product-img-badge out">ÉPUISÉ</span>
+                    {% endif %}
+                </div>
+
+                <div class="product-card-body">
+                    <div class="product-stars">★★★★★</div>
+                    <div class="product-name">{{ p.name }}</div>
+                    <div class="product-meta">{{ p.weight }} g &nbsp;·&nbsp; {{ p.type }}</div>
+
+                    <div class="product-footer">
+                        <span class="product-price">${{ "%.2f"|format(p.price / 100) }}</span>
+                    </div>
+
+                    {% if p.in_stock %}
+                    <div class="product-order-row">
+                        <input type="number" class="qty-input" value="1" min="1" max="99">
+                        <button class="btn-red flex-grow-1 commander-btn"
+                                data-product-id="{{ p.id }}"
+                                style="flex:1;">
+                            COMMANDER
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="product-order-row">
+                        <button class="btn-red w-100" disabled style="width:100%;">INDISPONIBLE</button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}

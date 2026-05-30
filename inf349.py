@@ -24,3 +24,5 @@ def init_db():
 from routes import api
 app.register_blueprint(api)
 
+app.jinja_env.globals['IMAGE_BASE'] = 'https://dimensweb.uqac.ca/~jgnault/shops/products/'
+
