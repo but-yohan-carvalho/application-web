@@ -115,7 +115,7 @@ def _order_to_dict(order):
                 'address': order.shipping_address,
                 'city': order.shipping_city,
                 'postal_code': order.shipping_postal_code,
-            },
+            } if order.shipping_country else {},
             'shipping_price': order.shipping_price,
             'total_price': order.total_price,
             'total_price_tax': order.total_price_tax,
@@ -125,11 +125,11 @@ def _order_to_dict(order):
                 'last_digits': order.cc_last_digits,
                 'expiration_year': order.cc_expiration_year,
                 'expiration_month': order.cc_expiration_month,
-            },
+            } if order.cc_name else {},
             'transaction': {
                 'id': order.transaction_id,
                 'success': order.transaction_success,
                 'amount_charged': order.transaction_amount_charged,
-            },
+            } if order.transaction_id else {},
         }
     }

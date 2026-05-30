@@ -6,13 +6,14 @@ skinparam sequenceArrowThickness 2
 
 title Demarrage : flask init-db
 
-actor       Client
-participant "routes.py"      as Routes
+actor       Developpeur
+participant "inf349.py\n(flask init-db)" as App
 participant "ProductService" as PS
 database    "SQLite"         as DB
 participant "dimensweb.uqac.ca" as EXT
 
-Routes -> PS  : fetch_and_store()
+Developpeur -> App : flask init-db
+App -> PS  : fetch_and_store()
 PS -> EXT     : GET /jgnault/shops/products/
 EXT --> PS    : [{ id, name, price, weight, in_stock... }]
 PS -> DB      : INSERT INTO product (...)

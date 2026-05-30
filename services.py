@@ -77,7 +77,7 @@ class OrderService:
             'NS': 0.14,
         }
         rate = taxes.get(province, 0)
-        return int(total * (1 + rate))
+        return round(total * (1 + rate), 2)
 
     @staticmethod
     def update_shipping(order_id, email, info):
@@ -111,6 +111,9 @@ class OrderService:
 
         if order.paid:
             raise ValueError('already-paid')
+
+        if not order.email or not order.shipping_country:
+            raise ValueError('missing-fields')
 
         amount_charged = order.total_price_tax + order.shipping_price
         transaction = PaymentService.charge(credit_card, amount_charged)

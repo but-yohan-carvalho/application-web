@@ -138,7 +138,7 @@ def test_put_order_shipping_success(client, sample_product):
     assert data['shipping_information']['province'] == 'QC'
     assert data['shipping_price'] == 500
     assert data['total_price'] == 1000
-    assert data['total_price_tax'] == 1150  # 1000 * 1.15
+    assert data['total_price_tax'] == 1150.0  # 1000 * 1.15
 
 
 def test_put_order_shipping_missing_fields(client, sample_product):
@@ -248,6 +248,20 @@ def test_put_order_card_declined(client, sample_product):
     # Assert
     assert resp.status_code == 422
     assert resp.get_json()['errors']['payment']['code'] == 'card-declined'
+
+
+def test_put_order_payment_without_shipping(client, sample_product):
+    # Arrange
+    post = client.post('/order', json={'product': {'id': 1, 'quantity': 1}},
+                       follow_redirects=True)
+    order_id = post.get_json()['order']['id']
+
+    # Act — payer sans avoir fourni email/shipping
+    resp = client.put(f'/order/{order_id}', json={'credit_card': VALID_CARD})
+
+    # Assert
+    assert resp.status_code == 422
+    assert resp.get_json()['errors']['order']['code'] == 'missing-fields'
 
 
 def test_put_order_payment_not_found(client):
