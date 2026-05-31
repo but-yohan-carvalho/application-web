@@ -47,9 +47,15 @@ class OrderService:
         if not product.in_stock:
             raise ValueError('out-of-inventory')
 
+        total_price = OrderService._calc_total(product.price, quantity)
+        shipping_price = OrderService._calc_shipping(product.weight * quantity)
+
         order = Order.create(
             product=product.id,
-            quantity=quantity, )
+            quantity=quantity,
+            total_price=total_price,
+            shipping_price=shipping_price,
+        )
         return order
 
     @staticmethod
@@ -86,8 +92,6 @@ class OrderService:
         if order is None:
             return None
 
-        product = ProductService.get_by_id(order.product)
-
         order.email = email
         order.shipping_country = info['country']
         order.shipping_province = info['province']
@@ -95,8 +99,6 @@ class OrderService:
         order.shipping_city = info['city']
         order.shipping_postal_code = info['postal_code']
 
-        order.shipping_price = OrderService._calc_shipping(product.weight)
-        order.total_price = OrderService._calc_total(product.price, order.quantity)
         order.total_price_tax = OrderService._calc_total_tax(order.total_price, info['province'])
 
         order.save()

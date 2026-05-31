@@ -1,4 +1,4 @@
-from peewee import SqliteDatabase, Model, IntegerField, CharField, BooleanField
+from peewee import SqliteDatabase, Model, IntegerField, FloatField, CharField, BooleanField
 
 db = SqliteDatabase('database.db')
 
@@ -21,8 +21,8 @@ class Product(BaseModel):
 class Order(BaseModel):
     id=IntegerField(primary_key=True)
     quantity = IntegerField()
-    total_price = IntegerField(default=0)
-    total_price_tax = IntegerField(default=0)
+    total_price = FloatField(default=0)
+    total_price_tax = FloatField(default=0)
     shipping_price = IntegerField(default=0)
     email = CharField(null=True)
     paid = BooleanField(default=False)
