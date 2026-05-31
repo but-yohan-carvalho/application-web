@@ -2,3 +2,5 @@ CLAUDE.md export-ignore
 docs/ export-ignore
 .idea/ export-ignore
 .claude/ export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
