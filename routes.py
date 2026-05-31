@@ -46,11 +46,16 @@ def post_order():
     if not product_id or not quantity or quantity < 1:
         return jsonify({'errors': {'product': {'code': 'missing-fields', 'name': 'La création d\'une commande nécessite un produit'}}}), 422
 
+    _product_error_names = {
+        'out-of-inventory': "Le produit demandé n'est pas en inventaire",
+    }
+
     try:
         order = OrderService.create(product_id, quantity)
     except ValueError as e:
         code = str(e)
-        return jsonify({'errors': {'product': {'code': code, 'name': code}}}), 422
+        name = _product_error_names.get(code, code)
+        return jsonify({'errors': {'product': {'code': code, 'name': name}}}), 422
 
     return redirect(url_for('api.get_order', order_id=order.id), code=302)
 
@@ -97,11 +102,17 @@ def put_order(order_id):
         return jsonify(_order_to_dict(order))
 
     elif 'credit_card' in data:
+        _order_error_names = {
+            'already-paid': "La commande a déjà été payée.",
+            'missing-fields': "Les informations du client sont nécessaires avant d'appliquer une carte de crédit",
+        }
+
         try:
             order = OrderService.apply_credit_card(order_id, data['credit_card'])
         except ValueError as e:
             code = str(e)
-            return jsonify({'errors': {'order': {'code': code, 'name': code}}}), 422
+            name = _order_error_names.get(code, code)
+            return jsonify({'errors': {'order': {'code': code, 'name': name}}}), 422
         except urllib.error.HTTPError as e:
             error_body = json.loads(e.read().decode())
             return jsonify(error_body), 422

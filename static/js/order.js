@@ -1,6 +1,12 @@
+function decodeHTML(str) {
+    const txt = document.createElement('textarea');
+    txt.innerHTML = str;
+    return txt.value;
+}
+
 function showError(message) {
     const alert = document.getElementById('error-alert');
-    alert.textContent = message;
+    alert.textContent = decodeHTML(message);
     alert.classList.add('visible');
     alert.scrollIntoView({ behavior: 'smooth' });
 }
@@ -57,7 +63,7 @@ if (paymentForm) {
         btn.disabled = true;
         btn.textContent = 'Traitement en cours...';
 
-        const ccNumber = document.getElementById('cc-number').value.replace(/\s/g, '');
+        const ccNumber = document.getElementById('cc-number').value.trim();
 
         const body = {
             credit_card: {
