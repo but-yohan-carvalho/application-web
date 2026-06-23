@@ -47,9 +47,9 @@ def out_of_stock_product():
 
 @pytest.fixture()
 def app():
-    import inf349
-    inf349.app.config['TESTING'] = True
-    return inf349.app
+    import api8inf349
+    api8inf349.app.config['TESTING'] = True
+    return api8inf349.app
 
 
 @pytest.fixture()
