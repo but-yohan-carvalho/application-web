@@ -1,7 +1,7 @@
 # INF349 — Application Web de paiement de commandes
 
 Travail de session — UQAC  
-Étudiant : genwox
+Étudiants : Damien Dema Lima, Yohan D'Alvaringa Carvalho
 
 ## Prérequis
 

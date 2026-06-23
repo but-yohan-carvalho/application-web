@@ -1,2 +1,5 @@
 venv/
 __pycache__/
+.venv/
+database.db
+*.pyc

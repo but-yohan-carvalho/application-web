@@ -1,6 +1,14 @@
 import json, urllib.request
 from models import Product, Order
 
+
+def _clean(value):
+    """Postgres refuse les caractères NUL , on les retire."""
+    if isinstance(value, str):
+        return value.replace('\x00', '')
+    return value
+
+
 class ProductService:
     PRODUCT_URL="https://dimensweb.uqac.ca/~jgnault/shops/products/"
 
@@ -13,10 +21,10 @@ class ProductService:
             Product.get_or_create(
                 id=p['id'],
                 defaults={
-                    'name': p['name'],
-                    'type': p['type'],
-                    'description': p['description'],
-                    'image': p['image'],
+                    'name': _clean(p['name']),
+                    'type': _clean(p['type']),
+                    'description': _clean(p['description']),
+                    'image': _clean(p['image']),
                     'height': p['height'],
                     'weight': p['weight'],
                     'price': p['price'],
