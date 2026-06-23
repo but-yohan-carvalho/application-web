@@ -1,6 +1,14 @@
-from peewee import SqliteDatabase, Model, IntegerField, FloatField, CharField, BooleanField
+import os
+from peewee import PostgresqlDatabase, Model, IntegerField, FloatField, CharField, BooleanField
 
-db = SqliteDatabase('database.db')
+db = PostgresqlDatabase(
+    os.environ.get('DB_NAME', 'api8inf349'),
+    host=os.environ.get('DB_HOST', 'localhost'),
+    port=int(os.environ.get('DB_PORT', 5432)),
+    user=os.environ.get('DB_USER', 'user'),
+    password=os.environ.get('DB_PASSWORD', 'pass'),
+)
+
 
 class BaseModel(Model):
     class Meta:
