@@ -164,7 +164,7 @@ Critères d'évaluation : Exigences techniques 25% · Docker 10% · Multi-produi
 
 - [x] **Postgres** — `models.py` : `PostgresqlDatabase` configuré via `DB_*` env vars (+ nettoyage NUL dans `ProductService._clean`)
 - [ ] **Redis** — module de connexion via `REDIS_URL`
-- [ ] **Renommer l'app en `api8inf349`** (entrée Flask + `FLASK_APP`)
+- [x] **Renommer l'app en `api8inf349`** (`api8inf349.py` + `.flaskenv` + `conftest.py`)
 - [ ] **Multi-produits** — `POST /order` (liste `products` + rétrocompat mono-produit) + recalcul total/livraison + format `GET` adapté
 - [ ] **Extraction paiement → RQ** — `flask worker`, `PUT credit_card` → 202, GET 202/200, PUT 409, erreur distante persistée (GET 200)
 - [ ] **Cache Redis** — commande payée mise en cache ; `GET` lit Redis d'abord et fonctionne sans Postgres
