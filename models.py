@@ -1,5 +1,5 @@
 import os
-from peewee import PostgresqlDatabase, Model, IntegerField, FloatField, CharField, BooleanField
+from peewee import PostgresqlDatabase, Model, IntegerField, FloatField, CharField, BooleanField, ForeignKeyField
 
 db = PostgresqlDatabase(
     os.environ.get('DB_NAME', 'api8inf349'),
@@ -28,13 +28,12 @@ class Product(BaseModel):
 
 class Order(BaseModel):
     id=IntegerField(primary_key=True)
-    quantity = IntegerField()
     total_price = FloatField(default=0)
     total_price_tax = FloatField(default=0)
     shipping_price = IntegerField(default=0)
     email = CharField(null=True)
     paid = BooleanField(default=False)
-    product = IntegerField()
+    status = CharField(default='pending')
 
     #Shipping
     shipping_country = CharField(null=True)
@@ -54,6 +53,14 @@ class Order(BaseModel):
     transaction_id = CharField(null=True)
     transaction_success = BooleanField(null=True)
     transaction_amount_charged = IntegerField(null=True)
+    transaction_error = CharField(null=True)
+
+
+class OrderItem(BaseModel):
+    order = ForeignKeyField(Order, backref='items', on_delete='CASCADE')
+    product = ForeignKeyField(Product)
+    quantity = IntegerField()
+
 
 
 

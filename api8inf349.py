@@ -1,5 +1,5 @@
 from flask import Flask
-from models import db, Product, Order
+from models import db, Product, Order, OrderItem
 
 
 app = Flask(__name__)
@@ -16,7 +16,7 @@ def close_db(exc):
 @app.cli.command('init-db')
 def init_db():
     db.connect(reuse_if_open=True)
-    db.create_tables([Product, Order])
+    db.create_tables([Product, Order, OrderItem])
     from services import ProductService
     ProductService.fetch_and_store()
     print("Base de données initialisée.")
