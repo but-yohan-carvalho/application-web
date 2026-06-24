@@ -1,5 +1,5 @@
 import json, urllib.request
-from models import Product, Order
+from models import Product, Order, OrderItem
 
 
 def _clean(value):
@@ -46,24 +46,45 @@ class ProductService:
 
 class OrderService:
     @staticmethod
-    def create(product_id, quantity):
-        product = ProductService.get_by_id(product_id)
-
-        if product is None:
+    def create(products_list):
+        if not products_list:
             raise ValueError('missing-fields')
 
-        if not product.in_stock:
-            raise ValueError('out-of-inventory')
+        total_price = 0
+        total_weight = 0
+        validated_items = []
 
-        total_price = OrderService._calc_total(product.price, quantity)
-        shipping_price = OrderService._calc_shipping(product.weight * quantity)
+        for item in products_list:
+            p_id = item.get('id')
+            qty = item.get('quantity')
+            if not p_id or qty is None or qty < 1:
+                raise ValueError('missing-fields')
+
+            product = ProductService.get_by_id(p_id)
+            if product is None:
+                raise ValueError('missing-fields')
+            if not product.in_stock:
+                raise ValueError('out-of-inventory')
+
+            validated_items.append((product, qty))
+            total_price += product.price * qty
+            total_weight += product.weight * qty
+
+        shipping_price = OrderService._calc_shipping(total_weight)
 
         order = Order.create(
-            product=product.id,
-            quantity=quantity,
             total_price=total_price,
             shipping_price=shipping_price,
+            status='pending',
         )
+
+        for product, qty in validated_items:
+            OrderItem.create(
+                order=order,
+                product=product,
+                quantity=qty,
+            )
+
         return order
 
     @staticmethod

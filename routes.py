@@ -40,18 +40,25 @@ def get_products():
 def post_order():
     data = request.get_json(silent=True) or {}
 
-    product_id = data.get('product', {}).get('id')
-    quantity = data.get('product', {}).get('quantity')
+    products = data.get('products')
+    old_product = data.get('product')
 
-    if not product_id or not quantity or quantity < 1:
+    if not products and old_product:
+        p_id = old_product.get('id')
+        qty = old_product.get('quantity')
+        if p_id and qty:
+            products = [{'id': p_id, 'quantity': qty}]
+
+    if not products or not isinstance(products, list):
         return jsonify({'errors': {'product': {'code': 'missing-fields', 'name': 'La création d\'une commande nécessite un produit'}}}), 422
 
     _product_error_names = {
         'out-of-inventory': "Le produit demandé n'est pas en inventaire",
+        'missing-fields': "La création d'une commande nécessite un produit",
     }
 
     try:
-        order = OrderService.create(product_id, quantity)
+        order = OrderService.create(products)
     except ValueError as e:
         code = str(e)
         name = _product_error_names.get(code, code)
@@ -70,8 +77,14 @@ def get_order(order_id):
         return jsonify({'errors': {'order': {'code': 'not-found', 'name': 'La commande n\'existe pas'}}}), 404
 
     if _wants_html():
-        product = ProductService.get_by_id(order.product)
-        return render_template('order.html', order=_order_to_dict(order)['order'], product=product)
+        items_data = [
+            {
+                'product': ProductService.get_by_id(item.product_id),
+                'quantity': item.quantity
+            }
+            for item in order.items
+        ]
+        return render_template('order.html', order=_order_to_dict(order)['order'], items=items_data)
 
     return jsonify(_order_to_dict(order))
 
@@ -129,10 +142,13 @@ def _order_to_dict(order):
     return {
         'order': {
             'id': order.id,
-            'product': {
-                'id': order.product,
-                'quantity': order.quantity,
-            },
+            'products': [
+                {
+                    'id': item.product_id,
+                    'quantity': item.quantity,
+                }
+                for item in order.items
+            ],
             'email': order.email,
             'paid': order.paid,
             'shipping_information': {
