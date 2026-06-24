@@ -6,10 +6,14 @@ app = Flask(__name__)
 
 @app.before_request
 def connect_db():
+    if app.testing:
+        return
     db.connect(reuse_if_open=True)
 
 @app.teardown_request
 def close_db(exc):
+    if app.testing:
+        return
     if not db.is_closed():
         db.close()
 
