@@ -1,17 +1,17 @@
 import pytest
 from peewee import SqliteDatabase
-from models import Product, Order
+from models import Product, Order, OrderItem
 
 TEST_DB = SqliteDatabase(':memory:')
 
 
 @pytest.fixture(autouse=True)
 def use_test_db():
-    TEST_DB.bind([Product, Order], bind_refs=False, bind_backrefs=False)
+    TEST_DB.bind([Product, Order, OrderItem], bind_refs=False, bind_backrefs=False)
     TEST_DB.connect()
-    TEST_DB.create_tables([Product, Order])
+    TEST_DB.create_tables([Product, Order, OrderItem])
     yield
-    TEST_DB.drop_tables([Product, Order])
+    TEST_DB.drop_tables([Product, Order, OrderItem])
     TEST_DB.close()
 
 
