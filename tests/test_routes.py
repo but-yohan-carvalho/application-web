@@ -94,7 +94,7 @@ def test_get_order_success(client, sample_product):
     assert resp.status_code == 200
     data = resp.get_json()['order']
     assert data['id'] == order_id
-    assert data['product']['id'] == 1
+    assert data['products'][0]['id'] == 1
     assert data['paid'] is False
 
 
