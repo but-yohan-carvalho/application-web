@@ -15,5 +15,36 @@ services:
     ports:
       - "6379:6379"
 
+  web:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      FLASK_APP: api8inf349
+      REDIS_URL: redis://redis:6379
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: user
+      DB_PASSWORD: pass
+      DB_NAME: api8inf349
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build: .
+    command: flask worker
+    environment:
+      FLASK_APP: api8inf349
+      REDIS_URL: redis://redis:6379
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: user
+      DB_PASSWORD: pass
+      DB_NAME: api8inf349
+    depends_on:
+      - db
+      - redis
+
 volumes:
   pgdata:
