@@ -1,0 +1,14 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.git/
+.idea/
+.vscode/
+database.db
+*.db
+docs/
+*.log
+*.txt
+*.pdf
+!requirements.txt

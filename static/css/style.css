@@ -501,6 +501,35 @@ a { text-decoration: none; }
 .s-paid    { background: #198754; }
 .s-pending { background: var(--accent); }
 .s-new     { background: var(--secondary); }
+.s-failed  { background: var(--primary); }
+
+/* Payment Failed alert */
+.payment-alert-err {
+  background: #fdf2f2;
+  border: 1px solid #fde8e8;
+  border-left: 4px solid var(--primary);
+  color: #9b1c1c;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: shake 0.5s ease-in-out, fadeIn 0.3s ease-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* ── Error alert ── */
 .alert-err {

@@ -320,3 +320,29 @@ def test_put_order_payment_not_found(client):
 
     # Assert
     assert resp.status_code == 404
+
+
+def test_get_order_payment_declined_html(client, sample_product):
+    # Arrange
+    post = client.post('/order', json={'product': {'id': 1, 'quantity': 1}},
+                        follow_redirects=True)
+    order_id = post.get_json()['order']['id']
+    client.put(f'/order/{order_id}', json={'order': VALID_SHIPPING})
+
+    declined_body = json.dumps({
+        'errors': {'payment': {'code': 'card-declined', 'name': 'La carte a été déclinée'}}
+    }).encode()
+    http_error = urllib.error.HTTPError(url='', code=422, msg='Unprocessable', hdrs={}, fp=None)
+    http_error.read = lambda: declined_body
+
+    # Act 
+    with patch('services.PaymentService.charge', side_effect=http_error):
+        client.put(f'/order/{order_id}', json={'credit_card': VALID_CARD})
+
+    # Assert
+    resp = client.get(f'/order/{order_id}', headers={'Accept': 'text/html'})
+    assert resp.status_code == 200
+    html_content = resp.data.decode('utf-8')
+    assert 'Échec de paiement' in html_content
+    assert 'Paiement refusé' in html_content
+    assert 'La carte a été déclinée' in html_content

@@ -10,6 +10,8 @@
     </h1>
     {% if order.paid %}
     <span class="status-badge s-paid">Payée ✓</span>
+    {% elif order.transaction and order.transaction.error %}
+    <span class="status-badge s-failed">Échec de paiement ✗</span>
     {% elif order.shipping_information %}
     <span class="status-badge s-pending">En attente de paiement</span>
     {% else %}
@@ -112,7 +114,7 @@
         {% endif %}
 
         <!-- Transaction -->
-        {% if order.transaction %}
+        {% if order.paid and order.transaction %}
         <div class="o-card" style="border-top:3px solid #198754;">
             <div class="o-card-header" style="background:#198754;">Confirmation de paiement</div>
             <div class="o-card-body" style="font-size:0.85rem;">
@@ -159,9 +161,14 @@
             <div class="o-card-header">Paiement par carte bancaire</div>
             <div class="o-card-body">
                 {% if order.transaction and order.transaction.error %}
-                <div style="background:#fde8e8;border:1px solid #f5b5b5;color:#b91c1c;border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:0.85rem;">
-                    <strong>Paiement refusé :</strong> {{ order.transaction.error }}<br>
-                    Veuillez vérifier les informations de votre carte et réessayer.
+                <div class="payment-alert-err">
+                    <svg style="width:24px;height:24px;flex-shrink:0;color:var(--primary);" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <strong style="display:block;margin-bottom:4px;font-family:'Montserrat',sans-serif;font-weight:700;">Paiement refusé</strong>
+                        <span>{{ order.transaction.error }}. Veuillez vérifier les informations de votre carte et réessayer.</span>
+                    </div>
                 </div>
                 {% endif %}
                 <div style="background:var(--muted);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:0.8rem;color:var(--muted-foreground);">

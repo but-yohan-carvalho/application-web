@@ -19,6 +19,8 @@ services:
     build: .
     ports:
       - "5001:5001"
+    volumes:
+      - .:/app
     environment:
       FLASK_APP: api8inf349
       REDIS_URL: redis://redis:6379
@@ -34,6 +36,8 @@ services:
   worker:
     build: .
     command: flask worker
+    volumes:
+      - .:/app
     environment:
       FLASK_APP: api8inf349
       REDIS_URL: redis://redis:6379
