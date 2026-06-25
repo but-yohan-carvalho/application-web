@@ -163,6 +163,58 @@ class OrderService:
         order.save()
         return order
 
+    @staticmethod
+    def process_payment(order_id, credit_card):
+        from models import db
+        with db.connection_context():
+            order = OrderService.get(order_id)
+            if order is None:
+                return
+
+            if order.paid:
+                return
+
+            try:
+                amount_charged = int(order.total_price_tax) + order.shipping_price
+                transaction = PaymentService.charge(credit_card, amount_charged)
+
+                order.cc_name = transaction['credit_card']['name']
+                order.cc_first_digits = transaction['credit_card']['first_digits']
+                order.cc_last_digits = transaction['credit_card']['last_digits']
+                order.cc_expiration_year = transaction['credit_card']['expiration_year']
+                order.cc_expiration_month = transaction['credit_card']['expiration_month']
+
+                order.transaction_id = transaction['transaction']['id']
+                order.transaction_success = transaction['transaction']['success']
+                order.transaction_amount_charged = transaction['transaction']['amount_charged']
+                order.paid = True
+                order.status = 'paid'
+                order.transaction_error = None
+                order.save()
+
+                try:
+                    from cache import cache_order
+                    cache_order(order)
+                except Exception as ce:
+                    print(f"Redis cache error: {ce}")
+
+            except urllib.error.HTTPError as e:
+                try:
+                    error_body = json.loads(e.read().decode())
+                    err_msg = error_body.get('errors', {}).get('payment', {}).get('name', 'La carte a été déclinée')
+                except Exception:
+                    err_msg = "La carte a été déclinée"
+
+                order.transaction_error = err_msg
+                order.paid = False
+                order.status = 'failed'
+                order.save()
+            except Exception as e:
+                order.transaction_error = str(e)
+                order.paid = False
+                order.status = 'failed'
+                order.save()
+
 class PaymentService:
 
     PAY_URL = 'https://dimensweb.uqac.ca/~jgnault/shops/pay/'

@@ -25,6 +25,19 @@ def init_db():
     ProductService.fetch_and_store()
     print("Base de données initialisée.")
 
+@app.cli.command('worker')
+def run_worker():
+    import os
+    from redis import Redis
+    from rq import Connection, Worker
+
+    redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+    redis_conn = Redis.from_url(redis_url)
+
+    with Connection(redis_conn):
+        worker = Worker(['default'])
+        worker.work()
+
 from routes import api
 app.register_blueprint(api)
 
