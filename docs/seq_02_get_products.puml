@@ -4,18 +4,23 @@ skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
 skinparam sequenceArrowThickness 2
 
-title GET / : liste des produits
+title GET / : liste des produits (JSON ou HTML)
 
 actor       Client
 participant "routes.py"      as Routes
 participant "ProductService" as PS
-database    "SQLite"         as DB
+database    "PostgreSQL"     as DB
 
-Client -> Routes  : GET /
+Client -> Routes  : GET /  (Accept: json | html)
 Routes -> PS      : get_all()
 PS -> DB          : SELECT * FROM product
 DB --> PS         : [ Product, ... ]
 PS --> Routes     : liste produits
-Routes --> Client : 200 OK { "products": [...] }
+
+alt Accept: text/html
+    Routes --> Client : 200 OK (template index.html)
+else Accept: application/json
+    Routes --> Client : 200 OK { "products": [...] }
+end
 
 @enduml

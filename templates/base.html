@@ -30,9 +30,9 @@
         <div class="header-actions">
             <a href="#"><i class="bi bi-search"></i></a>
             <a href="#"><i class="bi bi-person"></i></a>
-            <a href="#">
+            <a href="#" id="cart-toggle" role="button">
                 <i class="bi bi-bag"></i>
-                <span class="cart-badge">0</span>
+                <span class="cart-badge" id="cart-badge">0</span>
             </a>
         </div>
     </div>
@@ -104,7 +104,27 @@
     </div>
 </footer>
 
+<!-- Panier (offcanvas) -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="cartOffcanvas" aria-labelledby="cartLabel" style="width:400px;max-width:90vw;">
+    <div class="offcanvas-header" style="border-bottom:1px solid var(--border, #eee);">
+        <h5 class="offcanvas-title" id="cartLabel" style="font-family:'Montserrat',sans-serif;font-weight:900;letter-spacing:1px;">MON PANIER</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fermer"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column" style="padding:0;">
+        <div id="cart-items" style="flex:1;overflow-y:auto;padding:16px 20px;"></div>
+        <div style="border-top:1px solid var(--border, #eee);padding:18px 20px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:14px;font-family:'Montserrat',sans-serif;font-weight:700;">
+                <span>SOUS-TOTAL</span>
+                <span id="cart-subtotal">$0.00</span>
+            </div>
+            <button id="cart-checkout" class="btn-red w-100" style="padding:13px;">PASSER LA COMMANDE</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>window.IMAGE_BASE = "{{ IMAGE_BASE }}";</script>
+<script src="{{ url_for('static', filename='js/cart.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

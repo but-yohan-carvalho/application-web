@@ -54,10 +54,13 @@
                     {% if p.in_stock %}
                     <div class="product-order-row">
                         <input type="number" class="qty-input" value="1" min="1" max="99">
-                        <button class="btn-red flex-grow-1 commander-btn"
-                                data-product-id="{{ p.id }}"
+                        <button class="btn-red flex-grow-1 add-cart-btn"
+                                data-id="{{ p.id }}"
+                                data-name="{{ p.name }}"
+                                data-price="{{ p.price }}"
+                                data-image="{{ p.image }}"
                                 style="flex:1;">
-                            COMMANDER
+                            AJOUTER AU PANIER
                         </button>
                     </div>
                     {% else %}
@@ -73,6 +76,4 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
-{% endblock %}
+{% block scripts %}{% endblock %}

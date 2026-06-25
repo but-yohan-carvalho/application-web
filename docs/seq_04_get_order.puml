@@ -4,26 +4,45 @@ skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
 skinparam sequenceArrowThickness 2
 
-title GET /order/<id> : consultation d'une commande
+title GET /order/<id> : consultation (cache Redis + statuts async)
 
 actor       Client
 participant "routes.py"    as Routes
+participant "cache.py"     as Cache
 participant "OrderService" as OS
-database    "SQLite"       as DB
+queue       "Redis"        as REDIS
+database    "PostgreSQL"   as DB
 
 Client -> Routes  : GET /order/42
-Routes -> OS      : get(order_id=42)
-OS -> DB          : SELECT * FROM order WHERE id = 42
+Routes -> Cache   : get_cached_order(42)
+Cache -> REDIS    : GET order:42
 
-alt commande introuvable
-    DB --> OS         : null
-    OS --> Routes     : erreur not found
-    Routes --> Client : 404 Not Found
+alt commande payee EN CACHE (resilience : Postgres non requis)
+    REDIS --> Cache   : { "order": {...} }
+    Cache --> Routes  : dict
+    Routes --> Client : 200 OK { "order": { "paid": true, ... } }
 
-else commande trouvee
-    DB --> OS         : Order
-    OS --> Routes     : Order
-    Routes --> Client : 200 OK { "order": { ... } }
+else absente du cache
+    REDIS --> Cache   : null
+    Cache --> Routes  : None
+    Routes -> OS      : get(42)
+    OS -> DB          : SELECT * FROM "order" WHERE id = 42
+
+    alt commande introuvable
+        DB --> OS         : null
+        OS --> Routes     : None
+        Routes --> Client : 404 Not Found
+
+    else paiement en cours (status = processing)
+        DB --> OS         : Order (processing)
+        OS --> Routes     : Order
+        Routes --> Client : 202 Accepted (sans corps / page "en cours" en HTML)
+
+    else commande trouvee
+        DB --> OS         : Order
+        OS --> Routes     : Order
+        Routes --> Client : 200 OK { "order": { ... } }
+    end
 end
 
 @enduml

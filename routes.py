@@ -112,6 +112,8 @@ def get_order(order_id):
         return jsonify({'errors': {'order': {'code': 'not-found', 'name': 'La commande n\'existe pas'}}}), 404
 
     if order.status == 'processing':
+        if _wants_html():
+            return render_template('processing.html', order_id=order_id), 202
         return '', 202
 
     if _wants_html():

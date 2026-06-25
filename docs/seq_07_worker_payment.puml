@@ -1,0 +1,42 @@
+@startuml seq_07_worker_payment
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 2
+
+title Worker RQ : traitement asynchrone du paiement
+
+participant "Worker\n(flask worker)" as W
+participant "OrderService"   as OS
+participant "PaymentService" as PAY
+participant "cache.py"       as Cache
+database    "PostgreSQL"     as DB
+queue       "Redis"          as REDIS
+participant "dimensweb.uqac.ca" as EXT
+
+W -> OS  : process_payment(42, credit_card)
+OS -> DB : SELECT * FROM "order" WHERE id = 42
+DB --> OS : Order (status = processing)
+
+OS -> PAY : charge(credit_card, amount_charged)
+PAY -> EXT : POST /jgnault/shops/pay/\n{ "credit_card": {...}, "amount_charged": 532 }
+
+alt carte declinee (HTTP 422 du service distant)
+    EXT --> PAY : 422 { "errors": { "payment": { "code": "card-declined" } } }
+    PAY --> OS  : raise HTTPError
+    OS -> DB    : UPDATE "order" SET paid=false, status='failed',\ntransaction_error='La carte a ete declinee'
+    DB --> OS   : ok
+    note over OS : GET /order/42 renverra 200\navec transaction.error (pas 422)
+
+else paiement accepte (HTTP 200)
+    EXT --> PAY : 200 { "transaction": {...}, "credit_card": {...} }
+    PAY --> OS  : dict resultat
+    OS -> DB    : UPDATE "order" SET paid=true, status='paid',\ncc_*, transaction_*
+    DB --> OS   : ok
+    OS -> Cache : cache_order(42, order_to_dict(order))
+    Cache -> REDIS : SET order:42 = { "order": {...} }
+    REDIS --> Cache : ok
+    note over Cache : commande payee mise en cache\n-> GET resilient sans Postgres
+end
+
+@enduml

@@ -1,5 +1,5 @@
 import os
-from peewee import PostgresqlDatabase, Model, IntegerField, FloatField, CharField, BooleanField, ForeignKeyField
+from peewee import PostgresqlDatabase, Model, IntegerField, FloatField, CharField, BooleanField, ForeignKeyField, AutoField
 
 db = PostgresqlDatabase(
     os.environ.get('DB_NAME', 'api8inf349'),
@@ -27,7 +27,7 @@ class Product(BaseModel):
 
 
 class Order(BaseModel):
-    id=IntegerField(primary_key=True)
+    id = AutoField()
     total_price = FloatField(default=0)
     total_price_tax = FloatField(default=0)
     shipping_price = IntegerField(default=0)

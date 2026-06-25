@@ -4,48 +4,39 @@ skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
 skinparam sequenceArrowThickness 2
 
-title PUT /order/<id> : paiement par carte de credit
+title PUT /order/<id> : paiement (mise en file RQ -> 202)
 
 actor       Client
-participant "routes.py"      as Routes
-participant "OrderService"   as OS
-participant "PaymentService" as PAY
-database    "SQLite"         as DB
-participant "dimensweb.uqac.ca" as EXT
+participant "routes.py"    as Routes
+participant "OrderService" as OS
+database    "PostgreSQL"   as DB
+queue       "RQ / Redis"   as RQ
 
 Client -> Routes : PUT /order/42\n{ "credit_card": { "number": "4242...", "cvv": "123", ... } }
-Routes -> OS     : apply_credit_card(order_id, credit_card)
-OS -> DB         : SELECT * FROM order WHERE id = 42
+Routes -> OS     : get(42)
+OS -> DB         : SELECT * FROM "order" WHERE id = 42
+DB --> OS        : Order
+OS --> Routes    : Order
 
-alt commande deja payee
-    DB --> OS         : Order (paid = true)
-    OS --> Routes     : erreur already-paid
+alt commande introuvable
+    Routes --> Client : 404 Not Found
+
+else commande deja payee (paid = true)
     Routes --> Client : 422 { "errors": { "order": { "code": "already-paid" } } }
 
+else paiement deja en cours (status = processing)
+    Routes --> Client : 409 Conflict { "errors": { "order": { "code": "conflict" } } }
+
 else email ou adresse manquants
-    DB --> OS         : Order (email = null)
-    OS --> Routes     : erreur missing-fields
     Routes --> Client : 422 { "errors": { "order": { "code": "missing-fields" } } }
 
 else informations completes
-    DB --> OS         : Order
-    OS -> PAY         : charge(credit_card, amount_charged)
-    PAY -> EXT        : POST /jgnault/shops/pay/\n{ "credit_card": {...}, "amount_charged": 10520 }
-
-    alt carte declinee
-        EXT --> PAY       : 422 card-declined
-        PAY --> OS        : erreur card-declined
-        OS --> Routes     : erreur card-declined
-        Routes --> Client : 422 { "credit_card": { "code": "card-declined" } }
-
-    else paiement accepte
-        EXT --> PAY       : 200 { "transaction": {...}, "credit_card": {...} }
-        PAY --> OS        : dict resultat
-        OS -> DB          : UPDATE order SET paid=true, cc_*, transaction_*
-        DB --> OS         : Order mise a jour
-        OS --> Routes     : Order
-        Routes --> Client : 200 OK { "order": { "paid": true, "transaction": {...} } }
-    end
+    Routes -> DB     : UPDATE "order" SET status = 'processing'
+    DB --> Routes    : ok
+    Routes -> RQ     : enqueue process_payment(42, credit_card)
+    RQ --> Routes    : job en file
+    Routes --> Client : 202 Accepted (sans corps)
+    note over RQ : traitement asynchrone\npar le worker -> voir seq_07
 end
 
 @enduml

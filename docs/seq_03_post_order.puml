@@ -4,36 +4,46 @@ skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
 skinparam sequenceArrowThickness 2
 
-title POST /order : creation de commande
+title POST /order : creation de commande (multi-produits)
 
 actor       Client
 participant "routes.py"      as Routes
 participant "OrderService"   as OS
 participant "ProductService" as PS
-database    "SQLite"         as DB
+database    "PostgreSQL"     as DB
 
-Client -> Routes : POST /order\n{ "product": { "id": 1, "quantity": 2 } }
-Routes -> OS     : create(product_id, quantity)
+Client -> Routes : POST /order\n{ "products": [ { "id": 1, "quantity": 2 }, ... ] }
+note right of Routes : retrocompat : { "product": {...} }\nconverti en liste a la volee
+Routes -> OS     : create(products : list)
 
-alt product / quantity manquants ou quantity < 1
-    OS --> Routes     : erreur missing-fields
+alt produit/quantite manquants ou quantity < 1
+    OS --> Routes     : ValueError(missing-fields)
     Routes --> Client : 422 { "errors": { "product": { "code": "missing-fields" } } }
 
-else produit hors stock
-    OS -> PS          : get_by_id(product_id)
-    PS -> DB          : SELECT * FROM product WHERE id = ?
-    DB --> PS         : Product (in_stock = false)
-    PS --> OS         : Product
-    OS --> Routes     : erreur out-of-inventory
+else un produit hors stock
+    loop pour chaque ligne
+        OS -> PS      : get_by_id(id)
+        PS -> DB      : SELECT * FROM product WHERE id = ?
+        DB --> PS     : Product (in_stock = false)
+        PS --> OS     : Product
+    end
+    OS --> Routes     : ValueError(out-of-inventory)
     Routes --> Client : 422 { "errors": { "product": { "code": "out-of-inventory" } } }
 
-else produit en stock
-    OS -> PS          : get_by_id(product_id)
-    PS -> DB          : SELECT * FROM product WHERE id = ?
-    DB --> PS         : Product (in_stock = true)
-    PS --> OS         : Product
-    OS -> DB          : INSERT INTO order (product_id, quantity)
+else tous les produits en stock
+    loop pour chaque ligne
+        OS -> PS      : get_by_id(id)
+        PS -> DB      : SELECT * FROM product WHERE id = ?
+        DB --> PS     : Product (in_stock = true)
+        PS --> OS     : Product
+    end
+    note over OS : total_price = somme(prix * qte)\nshipping_price = _calc_shipping(poids total)
+    OS -> DB          : INSERT INTO "order" (...)  status = pending
     DB --> OS         : Order (id = 42)
+    loop pour chaque ligne
+        OS -> DB      : INSERT INTO orderitem (order, product, quantity)
+        DB --> OS     : ok
+    end
     OS --> Routes     : Order
     Routes --> Client : 302 Location: /order/42
 end

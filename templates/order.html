@@ -158,6 +158,12 @@
         <div class="o-card">
             <div class="o-card-header">Paiement par carte bancaire</div>
             <div class="o-card-body">
+                {% if order.transaction and order.transaction.error %}
+                <div style="background:#fde8e8;border:1px solid #f5b5b5;color:#b91c1c;border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:0.85rem;">
+                    <strong>Paiement refusé :</strong> {{ order.transaction.error }}<br>
+                    Veuillez vérifier les informations de votre carte et réessayer.
+                </div>
+                {% endif %}
                 <div style="background:var(--muted);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:0.8rem;color:var(--muted-foreground);">
                     <strong style="color:var(--foreground);">Cartes de test :</strong>
                     <code style="background:white;padding:2px 6px;border-radius:4px;margin:0 4px;">4242 4242 4242 4242</code> acceptée &nbsp;|&nbsp;

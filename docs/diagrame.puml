@@ -13,21 +13,36 @@ package "models.py" #LightYellow {
     class Product {
         + id : int <<PK>>
         + name : String
+        + type : String
         + description : String
-        + price : float
-        + weight : int
-        + in_stock : bool
         + image : String
+        + height : int
+        + weight : int
+        + price : int
+        + in_stock : bool
     }
 
     class Order {
-        + id : int <<PK>>
-        + quantity : int
+        + id : int <<PK, AutoField>>
         + total_price : float
         + total_price_tax : float
-        + shipping_price : float
+        + shipping_price : int
         + email : String
         + paid : bool
+        + status : String <<pending|processing|paid|failed>>
+        --
+        ' Sous-objets stockes A PLAT dans la table Order
+        + shipping_* : String
+        + cc_* : String
+        + transaction_id / success / amount_charged : ...
+        + transaction_error : String
+    }
+
+    class OrderItem {
+        + id : int <<PK>>
+        + order : FK -> Order
+        + product : FK -> Product
+        + quantity : int
     }
 
     class ShippingInformation {
@@ -49,17 +64,19 @@ package "models.py" #LightYellow {
     class Transaction {
         + id : String
         + success : bool
-        + amount_charged : float
+        + amount_charged : int
+        + error : String
     }
 
-    note bottom of ShippingInformation : stocke a plat\ndans la table Order
-    note bottom of CreditCard          : stocke a plat\ndans la table Order
-    note bottom of Transaction         : stocke a plat\ndans la table Order
+    note bottom of ShippingInformation : classe Python\nstockee a plat dans Order
+    note bottom of CreditCard          : classe Python\nstockee a plat dans Order
+    note bottom of Transaction         : classe Python\nstockee a plat dans Order
 
-    Product "1"  <--  "0..*" Order : reference par
-    Order   "1"  *--  "0..1" ShippingInformation : contient
-    Order   "1"  *--  "0..1" CreditCard          : contient
-    Order   "1"  *--  "0..1" Transaction         : contient
+    Order   "1" *-- "1..*" OrderItem : lignes (multi-produits)
+    Product "1" <-- "0..*" OrderItem : reference
+    Order   "1" *-- "0..1" ShippingInformation : contient
+    Order   "1" *-- "0..1" CreditCard          : contient
+    Order   "1" *-- "0..1" Transaction         : contient
 }
 
 ' ─── COUCHE SERVICES ───
@@ -72,57 +89,90 @@ package "services.py" #LightBlue {
     }
 
     class OrderService {
-        + {static} create(product_id : int, quantity : int) : Order
+        + {static} create(products : list) : Order
         + {static} get(order_id : int) : Order
-        + {static} update_shipping(order_id : int, email : String, info : dict) : Order
-        + {static} apply_credit_card(order_id : int, credit_card : dict) : Order
+        + {static} update_shipping(order_id, email, info) : Order
+        + {static} process_payment(order_id, credit_card) : void
         --
-        - {static} calc_shipping(weight_g : int) : float
-        - {static} calc_total(price : float, qty : int) : float
-        - {static} calc_total_tax(total : float, province : String) : float
+        - {static} _calc_shipping(weight_g : int) : int
+        - {static} _calc_total_tax(total : float, province : String) : float
     }
 
     class PaymentService {
         + {static} PAY_URL : String
-        + {static} charge(credit_card : dict, amount : float) : dict
+        + {static} charge(credit_card : dict, amount : int) : dict
     }
+
+    note bottom of OrderService : order_to_dict(order)\n= serialisation JSON partagee\n(route + worker)
 
     OrderService ..> ProductService : utilise
     OrderService ..> PaymentService : delegue le paiement
+}
+
+' ─── CACHE REDIS ───
+package "cache.py" #Lavender {
+    class Cache {
+        + cache_order(order_id : int, data : dict) : bool
+        + get_cached_order(order_id : int) : dict
+    }
+    note bottom of Cache : tolerant aux pannes\n(try/except RedisError)
 }
 
 ' ─── COUCHE ROUTES ───
 package "routes.py" #LightGreen {
 
     class Routes {
-        + GET /() : json
+        + GET /() : json | html
         + POST /order() : 302
-        + GET /order(id : int) : json
-        + PUT /order(id : int) : json
+        + GET /order(id) : 200 | 202 | 404
+        + PUT /order(id) : 200 | 202 | 409 | 422
+        --
+        - _enqueue_payment(order_id, credit_card)
     }
 }
 
-' ─── POINT D ENTREE ───
-package "inf349.py" #MistyRose {
+' ─── POINT D ENTREE + WORKER ───
+package "api8inf349.py" #MistyRose {
 
     class App {
         + init_db() : void
+        + worker() : void  <<flask worker>>
     }
+}
+
+' ─── FILE DE TACHES RQ ───
+package "RQ (Redis Queue)" #Wheat {
+    class Queue
+    class Worker
 }
 
 ' ─── RELATIONS INTER-COUCHES ───
 Routes ..> OrderService   : delegue
 Routes ..> ProductService : delegue
+Routes ..> Cache          : lit (resilience)
+Routes ..> Queue          : enqueue process_payment
 App    ..> Routes         : enregistre
 App    ..> ProductService : appelle au demarrage
+App    ..> Worker         : flask worker
+Worker ..> OrderService   : execute process_payment
+OrderService ..> Cache    : ecrit la commande payee
 
 ProductService ..> Product : CRUD
 OrderService   ..> Order   : CRUD
+OrderService   ..> OrderItem : CRUD
 
-' ─── API EXTERNES ───
+' ─── INFRA / API EXTERNES ───
+database "PostgreSQL 12" as PG
+queue    "Redis 5"       as REDIS
 cloud "API Produits\ndimensweb.uqac.ca\n/jgnault/shops/products/" as ProdAPI
-cloud "Service Paiement\ndimensweb.uqac.ca\n/jgnault/shops/pay/" as PayAPI
+cloud "Service Paiement\ndimensweb.uqac.ca\n/jgnault/shops/pay/"   as PayAPI
 
+Product   ..> PG : peewee
+Order     ..> PG : peewee
+OrderItem ..> PG : peewee
+Cache  --> REDIS : SET / GET order:<id>
+Queue  --> REDIS : file "default"
+Worker --> REDIS : consomme
 ProductService --> ProdAPI : urllib GET
 PaymentService --> PayAPI  : urllib POST
 

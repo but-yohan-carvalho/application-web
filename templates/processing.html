@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Paiement en cours — Commande #{{ order_id }}{% endblock %}
+
+{% block content %}
+<div style="text-align:center;padding:90px 24px;">
+    <div class="spinner-border text-danger" role="status" style="width:3rem;height:3rem;">
+        <span class="visually-hidden">Chargement…</span>
+    </div>
+    <h2 style="margin-top:28px;font-family:'Montserrat',sans-serif;font-weight:900;">
+        Paiement en cours…
+    </h2>
+    <p style="color:var(--muted-foreground, #888);margin-top:8px;">
+        Commande #{{ order_id }} — traitement par notre service de paiement.<br>
+        Cette page se rafraîchit automatiquement.
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>setTimeout(function () { window.location.reload(); }, 2000);</script>
+{% endblock %}

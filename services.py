@@ -142,9 +142,6 @@ class OrderService:
         else:
             return 2500
     @staticmethod
-    def _calc_total(price, quantity):
-        return price * quantity
-    @staticmethod
     def _calc_total_tax(total, province):
         taxes = {
             'QC': 0.15,
@@ -172,36 +169,6 @@ class OrderService:
 
         order.total_price_tax = OrderService._calc_total_tax(order.total_price, info['province'])
 
-        order.save()
-        return order
-
-    @staticmethod
-    def apply_credit_card(order_id, credit_card):
-        order = OrderService.get(order_id)
-
-        if order is None:
-            return None
-
-        if order.paid:
-            raise ValueError('already-paid')
-
-        if not order.email or not order.shipping_country:
-            raise ValueError('missing-fields')
-
-        amount_charged = order.total_price_tax + order.shipping_price
-        transaction = PaymentService.charge(credit_card, amount_charged)
-
-        order.cc_name = transaction['credit_card']['name']
-        order.cc_first_digits = transaction['credit_card']['first_digits']
-        order.cc_last_digits = transaction['credit_card']['last_digits']
-        order.cc_expiration_year = transaction['credit_card']['expiration_year']
-        order.cc_expiration_month = transaction['credit_card']['expiration_month']
-
-        order.transaction_id = transaction['transaction']['id']
-        order.transaction_success = transaction['transaction']['success']
-        order.transaction_amount_charged = transaction['transaction']['amount_charged']
-
-        order.paid = True
         order.save()
         return order
 

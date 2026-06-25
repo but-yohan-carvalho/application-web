@@ -1,5 +1,5 @@
 from flask import Flask
-from models import db, Product, Order
+from models import db, Product, Order, OrderItem
 
 
 app = Flask(__name__)
@@ -7,8 +7,7 @@ app = Flask(__name__)
 @app.before_request
 def connect_db():
     # Résilience : si Postgres est indisponible, on ne fait pas planter la
-    # requête ici. Les routes servies par le cache Redis fonctionnent quand
-    # même ; celles qui ont besoin de la base échoueront plus loin.
+    # requête ici.
     try:
         db.connect(reuse_if_open=True)
     except Exception:
@@ -24,7 +23,7 @@ def close_db(exc):
 @app.cli.command('init-db')
 def init_db():
     db.connect(reuse_if_open=True)
-    db.create_tables([Product, Order])
+    db.create_tables([Product, Order, OrderItem])
     from services import ProductService
     ProductService.fetch_and_store()
     print("Base de données initialisée.")
@@ -33,14 +32,14 @@ def init_db():
 def run_worker():
     import os
     from redis import Redis
-    from rq import Connection, Worker
+    from rq import Queue, Worker
 
     redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
     redis_conn = Redis.from_url(redis_url)
 
-    with Connection(redis_conn):
-        worker = Worker(['default'])
-        worker.work()
+    queue = Queue('default', connection=redis_conn)
+    worker = Worker([queue], connection=redis_conn)
+    worker.work()
 
 from routes import api
 app.register_blueprint(api)

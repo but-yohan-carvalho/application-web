@@ -7,16 +7,20 @@ skinparam sequenceArrowThickness 2
 title Demarrage : flask init-db
 
 actor       Developpeur
-participant "inf349.py\n(flask init-db)" as App
+participant "api8inf349.py\n(flask init-db)" as App
 participant "ProductService" as PS
-database    "SQLite"         as DB
+database    "PostgreSQL"     as DB
 participant "dimensweb.uqac.ca" as EXT
 
 Developpeur -> App : flask init-db
+App -> DB  : create_tables([Product, Order, OrderItem])
+DB --> App : ok
 App -> PS  : fetch_and_store()
 PS -> EXT     : GET /jgnault/shops/products/
 EXT --> PS    : [{ id, name, price, weight, in_stock... }]
 PS -> DB      : INSERT INTO product (...)
 DB --> PS     : ok
+
+note over App : ne CREE PAS la base\n(connexion via DB_* env vars)
 
 @enduml
