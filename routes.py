@@ -1,10 +1,26 @@
-import json
-import urllib.error
-from flask import Blueprint, jsonify, request, redirect, url_for, render_template
-from services import ProductService, OrderService
-from cache import get_cached_order, cache_order
+import os
+from flask import Blueprint, jsonify, request, redirect, url_for, render_template, current_app
+from redis import Redis
+from rq import Queue
+from services import ProductService, OrderService, order_to_dict
+from cache import get_cached_order
 
 api = Blueprint('api', __name__)
+
+
+# Alias : la sérialisation vit désormais dans services .
+_order_to_dict = order_to_dict
+
+
+def _enqueue_payment(order_id, credit_card):
+    """Met le paiement en file RQ (ou l'exécute en synchrone pendant les tests).
+
+    """
+    if current_app.testing:
+        OrderService.process_payment(order_id, credit_card)
+        return
+    redis_conn = Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379'))
+    Queue(connection=redis_conn).enqueue(OrderService.process_payment, order_id, credit_card)
 
 
 def _wants_html():
@@ -70,17 +86,22 @@ def post_order():
 
 @api.route('/order/<int:order_id>', methods=['GET'])
 def get_order(order_id):
-    # Résilience : on lit d'abord le cache Redis. Si la commande payée y est,
+
 
     cached = get_cached_order(order_id)
     if cached is not None:
         if _wants_html():
-            product = None
+
+            items = []
             try:
-                product = ProductService.get_by_id(cached['order']['product']['id'])
+                for line in cached['order'].get('products', []):
+                    items.append({
+                        'product': ProductService.get_by_id(line['id']),
+                        'quantity': line['quantity'],
+                    })
             except Exception:
-                product = None
-            return render_template('order.html', order=cached['order'], product=product)
+                items = []
+            return render_template('order.html', order=cached['order'], items=items)
         return jsonify(cached)
 
     order = OrderService.get(order_id)
@@ -132,69 +153,26 @@ def put_order(order_id):
         return jsonify(_order_to_dict(order))
 
     elif 'credit_card' in data:
-        _order_error_names = {
-            'already-paid': "La commande a déjà été payée.",
-            'missing-fields': "Les informations du client sont nécessaires avant d'appliquer une carte de crédit",
-        }
-
-        try:
-            order = OrderService.apply_credit_card(order_id, data['credit_card'])
-        except ValueError as e:
-            code = str(e)
-            name = _order_error_names.get(code, code)
-            return jsonify({'errors': {'order': {'code': code, 'name': name}}}), 422
-        except urllib.error.HTTPError as e:
-            error_body = json.loads(e.read().decode())
-            return jsonify(error_body), 422
+        order = OrderService.get(order_id)
 
         if order is None:
             return jsonify({'errors': {'order': {'code': 'not-found', 'name': 'La commande n\'existe pas'}}}), 404
 
-        result = _order_to_dict(order)
-        # Résilience : la commande payée est aussi mise en cache Redis,
-        # pour que GET /order/<id> réponde même si Postgres est indisponible.
         if order.paid:
-            cache_order(order.id, result)
-        return jsonify(result)
+            return jsonify({'errors': {'order': {'code': 'already-paid', 'name': 'La commande a déjà été payée.'}}}), 422
+
+        # Paiement déjà en cours → conflit.
+        if order.status == 'processing':
+            return jsonify({'errors': {'order': {'code': 'conflict', 'name': 'Un paiement est déjà en cours pour cette commande.'}}}), 409
+
+        if not order.email or not order.shipping_country:
+            return jsonify({'errors': {'order': {'code': 'missing-fields', 'name': "Les informations du client sont nécessaires avant d'appliquer une carte de crédit"}}}), 422
+
+        # Paiement asynchrone : on marque la commande « en cours », on met la
+        # tâche en file RQ, puis on répond 202 sans corps.
+        order.status = 'processing'
+        order.save()
+        _enqueue_payment(order_id, data['credit_card'])
+        return '', 202
 
     return jsonify({'errors': {'order': {'code': 'missing-fields', 'name': 'Il manque un ou plusieurs champs qui sont nécessaires'}}}), 422
-
-
-def _order_to_dict(order):
-    return {
-        'order': {
-            'id': order.id,
-            'products': [
-                {
-                    'id': item.product_id,
-                    'quantity': item.quantity,
-                }
-                for item in order.items
-            ],
-            'email': order.email,
-            'paid': order.paid,
-            'shipping_information': {
-                'country': order.shipping_country,
-                'province': order.shipping_province,
-                'address': order.shipping_address,
-                'city': order.shipping_city,
-                'postal_code': order.shipping_postal_code,
-            } if order.shipping_country else {},
-            'shipping_price': order.shipping_price,
-            'total_price': order.total_price,
-            'total_price_tax': order.total_price_tax,
-            'credit_card': {
-                'name': order.cc_name,
-                'first_digits': order.cc_first_digits,
-                'last_digits': order.cc_last_digits,
-                'expiration_year': order.cc_expiration_year,
-                'expiration_month': order.cc_expiration_month,
-            } if order.cc_name else {},
-            'transaction': {
-                'id': order.transaction_id,
-                'success': order.transaction_success,
-                'amount_charged': order.transaction_amount_charged,
-                'error': order.transaction_error,
-            } if (order.transaction_id or order.transaction_error) else {},
-        }
-    }

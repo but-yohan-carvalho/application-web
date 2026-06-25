@@ -9,6 +9,48 @@ def _clean(value):
     return value
 
 
+def order_to_dict(order):
+    """Sérialise une commande au format JSON de l'API.
+    """
+    return {
+        'order': {
+            'id': order.id,
+            'products': [
+                {
+                    'id': item.product_id,
+                    'quantity': item.quantity,
+                }
+                for item in order.items
+            ],
+            'email': order.email,
+            'paid': order.paid,
+            'shipping_information': {
+                'country': order.shipping_country,
+                'province': order.shipping_province,
+                'address': order.shipping_address,
+                'city': order.shipping_city,
+                'postal_code': order.shipping_postal_code,
+            } if order.shipping_country else {},
+            'shipping_price': order.shipping_price,
+            'total_price': order.total_price,
+            'total_price_tax': order.total_price_tax,
+            'credit_card': {
+                'name': order.cc_name,
+                'first_digits': order.cc_first_digits,
+                'last_digits': order.cc_last_digits,
+                'expiration_year': order.cc_expiration_year,
+                'expiration_month': order.cc_expiration_month,
+            } if order.cc_name else {},
+            'transaction': {
+                'id': order.transaction_id,
+                'success': order.transaction_success,
+                'amount_charged': order.transaction_amount_charged,
+                'error': order.transaction_error,
+            } if (order.transaction_id or order.transaction_error) else {},
+        }
+    }
+
+
 class ProductService:
     PRODUCT_URL="https://dimensweb.uqac.ca/~jgnault/shops/products/"
 
@@ -196,7 +238,7 @@ class OrderService:
 
                 try:
                     from cache import cache_order
-                    cache_order(order)
+                    cache_order(order.id, order_to_dict(order))
                 except Exception as ce:
                     print(f"Redis cache error: {ce}")
 

@@ -46,23 +46,25 @@
         <div class="o-card">
             <div class="o-card-header">Résumé de la commande</div>
             <div class="o-card-body">
-                {% if product %}
+                {% for line in items %}
+                {% if line.product %}
                 <div style="display:flex;gap:16px;margin-bottom:16px;">
-                    <img src="{{ IMAGE_BASE }}{{ product.image }}" alt="{{ product.name }}"
+                    <img src="{{ IMAGE_BASE }}{{ line.product.image }}" alt="{{ line.product.name }}"
                          style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius);flex-shrink:0;background:var(--muted);">
                     <div>
                         <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.95rem;margin-bottom:4px;">
-                            {{ product.name }}
+                            {{ line.product.name }}
                         </div>
                         <div style="font-size:0.82rem;color:var(--muted-foreground);">
-                            Quantité : {{ order.product.quantity }}
+                            Quantité : {{ line.quantity }}
                         </div>
                         <div style="font-size:0.82rem;color:var(--muted-foreground);">
-                            ${{ "%.2f"|format(product.price / 100) }} / unité
+                            ${{ "%.2f"|format(line.product.price / 100) }} / unité
                         </div>
                     </div>
                 </div>
                 {% endif %}
+                {% endfor %}
                 {% if order.email %}
                 <div style="font-size:0.85rem;padding-top:12px;border-top:1px solid var(--border);">
                     <strong>Email :</strong> {{ order.email }}
