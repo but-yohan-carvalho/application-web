@@ -2,6 +2,7 @@ import json
 import urllib.error
 from flask import Blueprint, jsonify, request, redirect, url_for, render_template
 from services import ProductService, OrderService
+from cache import get_cached_order
 
 api = Blueprint('api', __name__)
 
@@ -62,6 +63,19 @@ def post_order():
 
 @api.route('/order/<int:order_id>', methods=['GET'])
 def get_order(order_id):
+    # Résilience : on lit d'abord le cache Redis. Si la commande payée y est,
+
+    cached = get_cached_order(order_id)
+    if cached is not None:
+        if _wants_html():
+            product = None
+            try:
+                product = ProductService.get_by_id(cached['order']['product']['id'])
+            except Exception:
+                product = None
+            return render_template('order.html', order=cached['order'], product=product)
+        return jsonify(cached)
+
     order = OrderService.get(order_id)
 
     if order is None:
