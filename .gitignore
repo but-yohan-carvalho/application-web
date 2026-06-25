@@ -3,3 +3,7 @@ __pycache__/
 .venv/
 database.db
 *.pyc
+.claude/
+CLAUDE.md
+GEMINI.md
+gemini.md
