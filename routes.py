@@ -2,7 +2,7 @@ import json
 import urllib.error
 from flask import Blueprint, jsonify, request, redirect, url_for, render_template
 from services import ProductService, OrderService
-from cache import get_cached_order
+from cache import get_cached_order, cache_order
 
 api = Blueprint('api', __name__)
 
@@ -134,7 +134,12 @@ def put_order(order_id):
         if order is None:
             return jsonify({'errors': {'order': {'code': 'not-found', 'name': 'La commande n\'existe pas'}}}), 404
 
-        return jsonify(_order_to_dict(order))
+        result = _order_to_dict(order)
+        # Résilience : la commande payée est aussi mise en cache Redis,
+        # pour que GET /order/<id> réponde même si Postgres est indisponible.
+        if order.paid:
+            cache_order(order.id, result)
+        return jsonify(result)
 
     return jsonify({'errors': {'order': {'code': 'missing-fields', 'name': 'Il manque un ou plusieurs champs qui sont nécessaires'}}}), 422
 

@@ -6,7 +6,13 @@ app = Flask(__name__)
 
 @app.before_request
 def connect_db():
-    db.connect(reuse_if_open=True)
+    # Résilience : si Postgres est indisponible, on ne fait pas planter la
+    # requête ici. Les routes servies par le cache Redis fonctionnent quand
+    # même ; celles qui ont besoin de la base échoueront plus loin.
+    try:
+        db.connect(reuse_if_open=True)
+    except Exception:
+        pass
 
 @app.teardown_request
 def close_db(exc):
