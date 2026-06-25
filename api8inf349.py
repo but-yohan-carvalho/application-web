@@ -1,14 +1,18 @@
 from flask import Flask
-from models import db, Product, Order, OrderItem
+from models import db, Product, Order
 
 
 app = Flask(__name__)
 
 @app.before_request
 def connect_db():
-    if app.testing:
-        return
-    db.connect(reuse_if_open=True)
+    # Résilience : si Postgres est indisponible, on ne fait pas planter la
+    # requête ici. Les routes servies par le cache Redis fonctionnent quand
+    # même ; celles qui ont besoin de la base échoueront plus loin.
+    try:
+        db.connect(reuse_if_open=True)
+    except Exception:
+        pass
 
 @app.teardown_request
 def close_db(exc):
@@ -20,7 +24,7 @@ def close_db(exc):
 @app.cli.command('init-db')
 def init_db():
     db.connect(reuse_if_open=True)
-    db.create_tables([Product, Order, OrderItem])
+    db.create_tables([Product, Order])
     from services import ProductService
     ProductService.fetch_and_store()
     print("Base de données initialisée.")

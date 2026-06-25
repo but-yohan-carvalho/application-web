@@ -2,6 +2,7 @@ import json
 import urllib.error
 from flask import Blueprint, jsonify, request, redirect, url_for, render_template
 from services import ProductService, OrderService
+from cache import get_cached_order, cache_order
 
 api = Blueprint('api', __name__)
 
@@ -69,6 +70,19 @@ def post_order():
 
 @api.route('/order/<int:order_id>', methods=['GET'])
 def get_order(order_id):
+    # Résilience : on lit d'abord le cache Redis. Si la commande payée y est,
+
+    cached = get_cached_order(order_id)
+    if cached is not None:
+        if _wants_html():
+            product = None
+            try:
+                product = ProductService.get_by_id(cached['order']['product']['id'])
+            except Exception:
+                product = None
+            return render_template('order.html', order=cached['order'], product=product)
+        return jsonify(cached)
+
     order = OrderService.get(order_id)
 
     if order is None:
@@ -118,36 +132,30 @@ def put_order(order_id):
         return jsonify(_order_to_dict(order))
 
     elif 'credit_card' in data:
-        order = OrderService.get(order_id)
+        _order_error_names = {
+            'already-paid': "La commande a déjà été payée.",
+            'missing-fields': "Les informations du client sont nécessaires avant d'appliquer une carte de crédit",
+        }
+
+        try:
+            order = OrderService.apply_credit_card(order_id, data['credit_card'])
+        except ValueError as e:
+            code = str(e)
+            name = _order_error_names.get(code, code)
+            return jsonify({'errors': {'order': {'code': code, 'name': name}}}), 422
+        except urllib.error.HTTPError as e:
+            error_body = json.loads(e.read().decode())
+            return jsonify(error_body), 422
+
         if order is None:
             return jsonify({'errors': {'order': {'code': 'not-found', 'name': 'La commande n\'existe pas'}}}), 404
 
+        result = _order_to_dict(order)
+        # Résilience : la commande payée est aussi mise en cache Redis,
+        # pour que GET /order/<id> réponde même si Postgres est indisponible.
         if order.paid:
-            return jsonify({'errors': {'order': {'code': 'already-paid', 'name': 'La commande a déjà été payée.'}}}), 422
-
-        if order.status == 'processing':
-            return jsonify({'errors': {'order': {'code': 'conflict', 'name': 'Le paiement est en cours de traitement'}}}), 409
-
-        if not order.email or not order.shipping_country:
-            return jsonify({'errors': {'order': {'code': 'missing-fields', 'name': 'Les informations du client sont nécessaires avant d\'appliquer une carte de crédit'}}}), 422
-
-        order.status = 'processing'
-        order.save()
-
-        from flask import current_app
-        is_testing = current_app.config.get('TESTING', False)
-        if is_testing:
-            OrderService.process_payment(order.id, data['credit_card'])
-        else:
-            import os
-            from redis import Redis
-            from rq import Queue
-            redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
-            redis_conn = Redis.from_url(redis_url)
-            q = Queue(connection=redis_conn)
-            q.enqueue('services.OrderService.process_payment', order.id, data['credit_card'])
-
-        return '', 202
+            cache_order(order.id, result)
+        return jsonify(result)
 
     return jsonify({'errors': {'order': {'code': 'missing-fields', 'name': 'Il manque un ou plusieurs champs qui sont nécessaires'}}}), 422
 
