@@ -76,6 +76,9 @@ def get_order(order_id):
             return render_template('error.html', message="Commande introuvable"), 404
         return jsonify({'errors': {'order': {'code': 'not-found', 'name': 'La commande n\'existe pas'}}}), 404
 
+    if order.status == 'processing':
+        return '', 202
+
     if _wants_html():
         items_data = [
             {
@@ -115,25 +118,36 @@ def put_order(order_id):
         return jsonify(_order_to_dict(order))
 
     elif 'credit_card' in data:
-        _order_error_names = {
-            'already-paid': "La commande a déjà été payée.",
-            'missing-fields': "Les informations du client sont nécessaires avant d'appliquer une carte de crédit",
-        }
-
-        try:
-            order = OrderService.apply_credit_card(order_id, data['credit_card'])
-        except ValueError as e:
-            code = str(e)
-            name = _order_error_names.get(code, code)
-            return jsonify({'errors': {'order': {'code': code, 'name': name}}}), 422
-        except urllib.error.HTTPError as e:
-            error_body = json.loads(e.read().decode())
-            return jsonify(error_body), 422
-
+        order = OrderService.get(order_id)
         if order is None:
             return jsonify({'errors': {'order': {'code': 'not-found', 'name': 'La commande n\'existe pas'}}}), 404
 
-        return jsonify(_order_to_dict(order))
+        if order.paid:
+            return jsonify({'errors': {'order': {'code': 'already-paid', 'name': 'La commande a déjà été payée.'}}}), 422
+
+        if order.status == 'processing':
+            return jsonify({'errors': {'order': {'code': 'conflict', 'name': 'Le paiement est en cours de traitement'}}}), 409
+
+        if not order.email or not order.shipping_country:
+            return jsonify({'errors': {'order': {'code': 'missing-fields', 'name': 'Les informations du client sont nécessaires avant d\'appliquer une carte de crédit'}}}), 422
+
+        order.status = 'processing'
+        order.save()
+
+        from flask import current_app
+        is_testing = current_app.config.get('TESTING', False)
+        if is_testing:
+            OrderService.process_payment(order.id, data['credit_card'])
+        else:
+            import os
+            from redis import Redis
+            from rq import Queue
+            redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+            redis_conn = Redis.from_url(redis_url)
+            q = Queue(connection=redis_conn)
+            q.enqueue('services.OrderService.process_payment', order.id, data['credit_card'])
+
+        return '', 202
 
     return jsonify({'errors': {'order': {'code': 'missing-fields', 'name': 'Il manque un ou plusieurs champs qui sont nécessaires'}}}), 422
 
@@ -172,6 +186,7 @@ def _order_to_dict(order):
                 'id': order.transaction_id,
                 'success': order.transaction_success,
                 'amount_charged': order.transaction_amount_charged,
-            } if order.transaction_id else {},
+                'error': order.transaction_error,
+            } if (order.transaction_id or order.transaction_error) else {},
         }
     }

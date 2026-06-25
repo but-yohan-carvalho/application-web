@@ -165,8 +165,10 @@ class OrderService:
 
     @staticmethod
     def process_payment(order_id, credit_card):
-        from models import db
-        with db.connection_context():
+        db = Order._meta.database
+        is_sqlite = db.__class__.__name__ == 'SqliteDatabase'
+
+        def _execute():
             order = OrderService.get(order_id)
             if order is None:
                 return
@@ -214,6 +216,12 @@ class OrderService:
                 order.paid = False
                 order.status = 'failed'
                 order.save()
+
+        if is_sqlite:
+            _execute()
+        else:
+            with db.connection_context():
+                _execute()
 
 class PaymentService:
 
