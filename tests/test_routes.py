@@ -202,9 +202,13 @@ def test_put_order_payment_success(client, sample_product):
     with patch('services.PaymentService.charge', return_value=MOCK_TRANSACTION):
         resp = client.put(f'/order/{order_id}', json={'credit_card': VALID_CARD})
 
-    # Assert
-    assert resp.status_code == 200
-    data = resp.get_json()['order']
+    # Assert PUT returns 202 Accepted
+    assert resp.status_code == 202
+
+    # Verify subsequent GET returns 200 OK with paid=True
+    get_resp = client.get(f'/order/{order_id}')
+    assert get_resp.status_code == 200
+    data = get_resp.get_json()['order']
     assert data['paid'] is True
     assert data['transaction']['success'] is True
     assert data['credit_card']['last_digits'] == '4242'
@@ -245,9 +249,55 @@ def test_put_order_card_declined(client, sample_product):
     with patch('services.PaymentService.charge', side_effect=http_error):
         resp = client.put(f'/order/{order_id}', json={'credit_card': VALID_CARD})
 
+    # Assert PUT returns 202 Accepted
+    assert resp.status_code == 202
+
+    # Verify subsequent GET returns 200 OK with failed status and error
+    get_resp = client.get(f'/order/{order_id}')
+    assert get_resp.status_code == 200
+    data = get_resp.get_json()['order']
+    assert data['paid'] is False
+    assert data['transaction']['error'] == 'La carte a été déclinée'
+
+
+def test_put_order_payment_conflict(client, sample_product):
+    # Arrange
+    post = client.post('/order', json={'product': {'id': 1, 'quantity': 1}},
+                        follow_redirects=True)
+    order_id = post.get_json()['order']['id']
+    client.put(f'/order/{order_id}', json={'order': VALID_SHIPPING})
+
+    # Manually set order status to processing
+    from models import Order
+    order = Order.get(Order.id == order_id)
+    order.status = 'processing'
+    order.save()
+
+    # Act
+    resp = client.put(f'/order/{order_id}', json={'credit_card': VALID_CARD})
+
     # Assert
-    assert resp.status_code == 422
-    assert resp.get_json()['errors']['payment']['code'] == 'card-declined'
+    assert resp.status_code == 409
+    assert resp.get_json()['errors']['order']['code'] == 'conflict'
+
+
+def test_get_order_processing(client, sample_product):
+    # Arrange
+    post = client.post('/order', json={'product': {'id': 1, 'quantity': 1}},
+                        follow_redirects=True)
+    order_id = post.get_json()['order']['id']
+
+    # Manually set order status to processing
+    from models import Order
+    order = Order.get(Order.id == order_id)
+    order.status = 'processing'
+    order.save()
+
+    # Act
+    resp = client.get(f'/order/{order_id}')
+
+    # Assert
+    assert resp.status_code == 202
 
 
 def test_put_order_payment_without_shipping(client, sample_product):
